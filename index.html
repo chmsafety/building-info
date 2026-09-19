@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.supabase.co; connect-src https://*.supabase.co wss://*.supabase.co https://tiles.openfreemap.org https://tile.openstreetmap.org; worker-src 'self' blob:; manifest-src 'self'; child-src blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.kakaocdn.net https://*.daumcdn.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.supabase.co; connect-src https://*.supabase.co wss://*.supabase.co https://tiles.openfreemap.org https://tile.openstreetmap.org; worker-src 'self' blob:; manifest-src 'self'; child-src blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Building · CHM 빌딩정보시스템</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1E8CF5">
@@ -154,6 +154,17 @@ h3{font-size:13px;color:var(--ink2);font-weight:600;margin:20px 0 8px;padding-bo
 .phtabs button{padding:4px 12px;border-radius:99px;border:1px solid var(--line);background:var(--paper);font-size:12px}
 .phtabs button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .phtabs a{margin-left:auto;font-size:12px;color:var(--pin)}
+.phsrc{font-size:11px;color:var(--ink2);margin-top:3px}.phsrc a{color:var(--ink2)}
+.pf-head{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.pf-head h2{margin:0}
+.pf-q{display:flex;gap:6px;margin-top:10px}.pf-q input{flex:1}
+.pf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px;min-height:120px}
+.pf-grid button{position:relative;padding:0;border:2px solid transparent;border-radius:8px;overflow:hidden;background:var(--bg);aspect-ratio:4/3}
+.pf-grid button img{width:100%;height:100%;object-fit:cover;display:block}
+.pf-grid button span{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);color:#fff;font-size:10.5px;padding:2px 5px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-grid button:hover{border-color:var(--hi)}
+.pf-grid button.done{border-color:var(--ok)}.pf-grid button.done::after{content:'✓ 저장됨';position:absolute;top:6px;left:6px;background:var(--ok);color:#fff;font-size:11px;font-weight:600;padding:2px 7px;border-radius:99px}
+.pf-grid button.busy{opacity:.5;cursor:wait}
+.pf-nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}.pf-nav .sp{flex:1}
 .thumbs{display:flex;gap:6px;margin-top:6px;overflow-x:auto}
 .thumbs button{padding:0;border:2px solid transparent;border-radius:6px;overflow:hidden;width:58px;height:40px;flex:none;background:var(--bg)}
 .thumbs button[aria-current="true"]{border-color:var(--hi)}.thumbs img{width:100%;height:100%;object-fit:cover}
@@ -240,6 +251,7 @@ td select{width:auto;padding:4px 6px}
         <button role="menuitem" id="mAdmin" class="hidden">계정 관리</button>
         <button role="menuitem" id="mImport" class="hidden">건축물대장 가져오기</button>
         <button role="menuitem" id="mBid" class="hidden">나라장터 입찰 가져오기</button>
+        <button role="menuitem" id="mPhoto" class="hidden">빌딩 사진 찾기</button>
         <button role="menuitem" id="mCsv">CSV 내보내기</button>
         <button role="menuitem" id="mOut">로그아웃</button>
       </div>
@@ -397,6 +409,7 @@ async function enterApp(){
   $('#mImport').classList.toggle('hidden',!isAdmin());
   $('#mBid').classList.toggle('hidden',!isAdmin());
   $('#mCsv').classList.toggle('hidden',!canEdit());
+  $('#mPhoto').classList.toggle('hidden',!canEdit());
   if(!mapInit){mapInit=true;initMap()}
   setTimeout(()=>map&&map.resize(),50);
   await loadAll();
@@ -424,6 +437,7 @@ $('#mPw').onclick=()=>openPwModal(false);
 $('#mAdmin').onclick=()=>openAdmin();
 $('#mImport').onclick=()=>openImport();
 $('#mBid').onclick=()=>openBidSync();
+$('#mPhoto').onclick=()=>openPhotoFinder(null);
 $('#mCsv').onclick=exportCsv;
 
 /* ================= 권역 탭 ================= */
@@ -760,7 +774,9 @@ async function renderDetail(){
     <button class="back" id="back">← ${esc(ZNAME[zone])}</button>
     <div class="phtabs" role="tablist"><button type="button" role="tab" data-pt="photo" aria-selected="${tab==='photo'}">사진 ${ph.length}</button><button type="button" role="tab" data-pt="rv" aria-selected="${tab==='rv'}">로드뷰</button>${hasPos(b)?`<a href="https://map.kakao.com/link/roadview/${+b.lat},${+b.lng}" target="_blank" rel="noopener noreferrer">카카오맵에서 크게 ↗</a>`:''}</div>
     <div class="photo" id="ph">${tab==='rv'?(hasPos(b)?`<iframe src="${esc('roadview.html#'+(+b.lat)+','+(+b.lng)+','+encodeURIComponent(b.name||''))}" title="${esc(b.name)} 로드뷰" allowfullscreen></iframe>`:'위치가 없어 로드뷰를 볼 수 없어요'):(ph.length?'사진 불러오는 중…':'등록된 사진이 없어요')}</div>
+    <div class="phsrc" id="phsrc"></div>
     <div class="thumbs" id="thumbs"></div>
+    ${canEdit()?`<button class="btn" id="phFind" type="button" style="margin-top:6px;padding:4px 10px;font-size:12px">웹에서 사진 찾기</button>`:''}
     <h2>${esc(b.name)}</h2><p class="hint" style="margin:0">${esc(b.address||'주소 미입력')}</p>
     <h3>기본 정보</h3>
     <div class="big">${fmtPy(b.gfa)}</div><div class="hint" style="margin-bottom:10px">연면적 ${fmtM2(b.gfa)}</div>
@@ -789,6 +805,7 @@ async function renderDetail(){
   $('#back').onclick=()=>{mode='dash';selId=null;drawMarkers();renderDash()};
   if($('#edit'))$('#edit').onclick=()=>startEdit(b);
   $('#v3go').onclick=()=>open3D(b.id,null);
+  if($('#phFind'))$('#phFind').onclick=()=>openPhotoFinder([b.id]);
   p.querySelectorAll('[data-pt]').forEach(t=>t.onclick=()=>{if(t.dataset.pt!==tab){phTab=t.dataset.pt;renderDetail()}});
   bindSug($('#panel'));bindBidList($('#panel'),renderDetail);
   if($('#v3lk'))$('#v3lk').onclick=()=>open3D(b.id,b.id);
@@ -798,6 +815,7 @@ async function renderDetail(){
     toast('삭제했어요');mode='dash';selId=null;loadAll()};
   if(tab==='photo'&&ph.length){const urls=await photoUrls(ph);if(selId!==b.id||mode!=='detail')return;
     const show=i=>{photoIdx=i;$('#ph').innerHTML=urls[i]?`<img src="${esc(urls[i])}" alt="${esc(b.name)} 사진">`:'사진을 불러오지 못했어요';
+      const s=b.photo_src?.[ph[i]];$('#phsrc').innerHTML=s&&safeUrl(s.url)?`출처: <a href="${esc(safeUrl(s.url))}" target="_blank" rel="noopener noreferrer">${esc(s.site||srcHost(s.url))}</a>`:'';
       $('#thumbs').querySelectorAll('button').forEach((t,j)=>t.setAttribute('aria-current',String(j===i)))};
     if(urls.length>1){$('#thumbs').innerHTML=urls.map((u,i)=>`<button data-i="${i}"><img src="${esc(u)}" alt=""></button>`).join('');
       $('#thumbs').querySelectorAll('button').forEach(t=>t.onclick=()=>show(+t.dataset.i))}
@@ -857,7 +875,7 @@ async function renderEdit(){
       <div class="f"><label for="lng">경도</label><input id="lng" name="lng" inputmode="decimal" value="${val(d.lng)}"></div></div>
     <button class="btn" id="place" type="button">지도에서 위치 지정</button>
     <h3>사진</h3>
-    <input type="file" id="pf" accept="image/jpeg,image/png,image/webp" multiple aria-label="사진 추가"><div class="hint" id="pst">사진 1장당 10MB 이하</div>
+    <input type="file" id="pf" accept="image/jpeg,image/png,image/webp" multiple aria-label="사진 추가"><div class="hint" id="pst">사진 1장당 10MB 이하</div>${d.isNew?'':'<button class="btn" id="pfWeb" type="button" style="margin-top:6px">웹에서 사진 찾기</button>'}
     <div class="ph-edit" id="phEdit"></div>
     <h3>3D 모습</h3>
     <div class="hint">지도를 확대하면 빌딩이 입체로 서요. 외벽 사진을 올리면 그 면에 사진이 입혀지고, 사진이 없는 면은 반대편 사진으로 채워요.</div>
@@ -892,6 +910,7 @@ async function renderEdit(){
   $('#place').onclick=()=>{collect();setPlacing(true);if(innerWidth<=860)$('#map').scrollIntoView({behavior:'smooth'})};
   $('#geo').onclick=geocode;
   $('#pf').onchange=uploadPhotos;
+  if($('#pfWeb'))$('#pfWeb').onclick=()=>{collect();openPhotoFinder([d.id],d)};
   const m3in=()=>{collect();const a=draft.model3d.az;$('#azv').textContent=`${a}° ${dirName(a)}`;syncBoxes()};
   for(const id of ['m3_w','m3_d','m3_h','m3_az','fa','fb','gfa_m2'])$('#'+id).addEventListener('input',m3in);
   p.querySelectorAll('input[data-face]').forEach(el=>el.onchange=()=>{const fl=el.files[0];if(fl)addFacade(el.dataset.face,fl)});
@@ -937,6 +956,7 @@ async function save(){
     floors_above:draft.floors_above,floors_below:draft.floors_below,completed:draft.completed||null,use_type:draft.use_type||null,owner:draft.owner||null,
     lat:draft.lat,lng:draft.lng,photos:draft.photos,fm:draft.fm,staff:draft.staff,memo:draft.memo||null,verified:!!draft.verified,model3d:cleanModel(draft.model3d)};
   if(buildings.some(x=>'bid_keywords' in x)||draft.bid_keywords)row.bid_keywords=draft.bid_keywords||null;
+  if(buildings.some(x=>'photo_src' in x)){const s={};for(const p of draft.photos)if(draft.photo_src?.[p])s[p]=draft.photo_src[p];row.photo_src=s}
   $('#save').disabled=true;er.textContent='';
   let res;
   if(draft.isNew)res=await sb.from('buildings').insert({...row,...(draft.id?{id:draft.id}:{})}).select('id');
@@ -1340,6 +1360,81 @@ function openImport(){
     running=false;go.disabled=false;st.disabled=true;
     if(tot.ins){await loadAll();toast(`빌딩 ${tot.ins}곳을 새로 등록했어요`)}
   };
+}
+
+/* ================= 빌딩 사진 찾기 (카카오 이미지 검색 → 골라서 저장) ================= */
+const srcHost=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch(_){return ''}};
+async function photoCall(body){
+  const {data,error}=await sb.functions.invoke('photo-search',{body});
+  if(error){let msg=error.message;try{const j=await error.context.json();msg=j.error||msg}catch(_){}
+    if(/Failed to send|not found|404/i.test(msg))msg='사진 찾기 서버 함수(photo-search)가 아직 없어요. 설치가이드를 확인하세요.';throw new Error(msg)}
+  if(data&&data.error)throw new Error(data.error);return data;
+}
+/* ids: 특정 빌딩만(상세·편집에서) / null: 현재 권역에서 사진 없는 빌딩을 차례로.  ed: 편집 중인 draft (있으면 draft 에만 넣고 저장은 편집 화면에서) */
+function openPhotoFinder(ids,ed){
+  if(!canEdit())return;
+  const queue=ids?ids.slice():buildings.filter(b=>inZone(b)&&!(b.photos||[]).length).map(b=>b.id);
+  if(!queue.length){toast('이 권역에 사진 없는 빌딩이 없어요');return}
+  let i=0,page=1,items=[],q='',loading=false,saved=0,end=false;const done=new Set();
+  const cur=()=>ed||buildings.find(x=>x.id===queue[i]);
+  const defQ=b=>{const n=String(b.name||'').trim();const dist=String(b.district||'').replace(/\s/g,'');
+    return /[0-9]/.test(n)&&/(로|길)\s*\d/.test(n)?`${b.address||n} 빌딩`:`${n} ${dist}`.trim()};
+  const m=modal(`<div class="pf-head"><h2 id="pfName"></h2><span class="hint" id="pfCnt"></span></div>
+    <div class="hint" id="pfAddr"></div>
+    <form class="pf-q" id="pfForm" onsubmit="return false"><input id="pfQ" aria-label="검색어"><button class="btn" type="submit">검색</button></form>
+    <div class="hint" style="margin-top:6px">맞는 사진을 누르면 바로 저장돼요(여러 장 가능). 사진은 출처와 함께 기록되고, 사내 확인용으로만 쓰세요.</div>
+    <div class="pf-grid" id="pfGrid"></div>
+    <div class="err" id="pfErr"></div>
+    <div class="pf-nav"><button class="btn" id="pfMore" type="button">다른 사진 더 보기</button><a class="hint" id="pfRv" target="_blank" rel="noopener noreferrer">로드뷰로 비교 ↗</a><span class="sp"></span>
+      ${queue.length>1?'<button class="btn" id="pfPrev" type="button">← 이전</button><button class="btn pri" id="pfNext" type="button">다음 빌딩 →</button>':''}
+      <button class="btn" id="pfX" type="button">닫기</button></div>`);
+  const grid=m.querySelector('#pfGrid'),err=m.querySelector('#pfErr');
+  const drawGrid=()=>{grid.innerHTML=items.length?items.map((x,k)=>`<button type="button" data-k="${k}" class="${done.has(x.image)?'done':''}" title="${esc(x.site||srcHost(x.doc))} · ${x.w}×${x.h}"><img src="${esc(x.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer"><span>${esc(x.site||srcHost(x.doc))}</span></button>`).join('')
+      :`<div class="hint" style="grid-column:1/-1;padding:20px 0">${loading?'찾는 중…':'결과가 없어요. 검색어를 바꿔 보세요.'}</div>`;
+    grid.querySelectorAll('[data-k]').forEach(el=>el.onclick=()=>pick(+el.dataset.k,el))};
+  const search=async more=>{
+    if(loading)return;loading=true;err.textContent='';if(!more){items=[];page=1;end=false}drawGrid();
+    try{const r=await photoCall({action:'search',q,page});const seen=new Set(items.map(x=>x.image));
+      items=items.concat(r.items.filter(x=>!seen.has(x.image)));end=r.end}catch(e){err.textContent=e.message}
+    loading=false;drawGrid();m.querySelector('#pfMore').disabled=end;
+  };
+  const load=()=>{
+    const b=cur();if(!b)return;
+    m.querySelector('#pfName').textContent=b.name;
+    m.querySelector('#pfAddr').textContent=[b.address,b.gfa?fmtPy(b.gfa):''].filter(Boolean).join(' · ');
+    m.querySelector('#pfCnt').textContent=queue.length>1?`사진 없는 빌딩 ${i+1} / ${queue.length} · 이번에 저장 ${saved}장`:`저장 ${saved}장`;
+    const rv=m.querySelector('#pfRv');if(hasPos(b)){rv.href=`https://map.kakao.com/link/roadview/${+b.lat},${+b.lng}`;rv.style.display=''}else rv.style.display='none';
+    q=defQ(b);m.querySelector('#pfQ').value=q;done.clear();search(false);
+    if(m.querySelector('#pfPrev'))m.querySelector('#pfPrev').disabled=i===0;
+    if(m.querySelector('#pfNext'))m.querySelector('#pfNext').disabled=i>=queue.length-1;
+  };
+  const pick=async(k,el)=>{
+    const x=items[k],b=cur();if(!x||!b||done.has(x.image)||el.classList.contains('busy'))return;
+    el.classList.add('busy');err.textContent='';
+    try{
+      const r=await photoCall({action:'save',id:b.id,image:x.image,thumb:x.thumb,doc:x.doc});
+      const src={url:x.doc||x.image,site:x.site||srcHost(x.doc),at:new Date().toISOString().slice(0,10),...(r.small?{small:true}:{})};
+      if(ed){ed.photos.push(r.path);ed.photo_src=Object.assign({},ed.photo_src,{[r.path]:src})}
+      else{
+        const photos=[...(b.photos||[]),r.path];const row={photos};
+        if('photo_src' in b)row.photo_src=Object.assign({},b.photo_src,{[r.path]:src});
+        const u=await sb.from('buildings').update(row).eq('id',b.id).select('id');
+        if(u.error||!u.data||!u.data.length){photoCall({action:'discard',path:r.path}).catch(()=>{});throw new Error(u.error?u.error.message:'저장 권한이 없어요.')}
+        b.photos=photos;if(row.photo_src)b.photo_src=row.photo_src;
+      }
+      done.add(x.image);saved++;el.classList.remove('busy');el.classList.add('done');
+      m.querySelector('#pfCnt').textContent=queue.length>1?`사진 없는 빌딩 ${i+1} / ${queue.length} · 이번에 저장 ${saved}장`:`저장 ${saved}장`;
+      if(r.small)err.textContent='원본을 받을 수 없어 작은 사진(썸네일)으로 저장했어요.';
+    }catch(e){el.classList.remove('busy');err.textContent=e.message}
+  };
+  m.querySelector('#pfForm').onsubmit=()=>{q=m.querySelector('#pfQ').value.trim();if(q)search(false);return false};
+  m.querySelector('#pfMore').onclick=()=>{if(!end){page++;search(true)}};
+  if(m.querySelector('#pfNext'))m.querySelector('#pfNext').onclick=()=>{if(i<queue.length-1){i++;load()}};
+  if(m.querySelector('#pfPrev'))m.querySelector('#pfPrev').onclick=()=>{if(i>0){i--;load()}};
+  m.querySelector('#pfX').onclick=()=>{closeModal();
+    if(ed){if(mode==='edit'&&draft===ed)renderEdit()}
+    else if(saved){if(mode==='detail'){phTab='photo';renderDetail()}else renderPanel()}};
+  load();
 }
 
 /* ================= 비밀번호 변경 ================= */
