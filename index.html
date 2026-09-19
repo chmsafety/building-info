@@ -102,6 +102,9 @@ h3{font-size:13px;color:var(--ink2);font-weight:600;margin:20px 0 8px;padding-bo
 .cos{max-height:380px;overflow:auto;padding-right:4px}
 .cos .barrow{width:100%;border:0;background:none;padding:2px 0;text-align:left;border-radius:6px}
 .cos .barrow:hover{background:var(--bg)}
+.cos .barrow.on{background:var(--chip);outline:2px solid var(--pin)}
+.filt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--chip);font-size:13px}
+.filt .btn{margin-left:auto;padding:4px 10px;font-size:12px}
 .list .sub small{color:var(--ink2);margin-left:1px}
 .barrow .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bar{height:10px;background:var(--bg);border-radius:5px;overflow:hidden}.bar i{display:block;height:100%;background:var(--pin)}
@@ -662,8 +665,8 @@ function renderDash(){
     </div>
     ${fmBox(zb)}
     <h3>관리회사별 빌딩 수 <span class="hint">(시설·보안·미화 · ${rows.filter(r=>r.name!=='__none').length}개사)</span></h3>
-    ${rows.length?`<div class="bars cos">${rows.map(r=>`<button type="button" class="barrow" data-co="${esc(r.name==='__none'?'':r.name)}" title="${esc(r.name==='__none'?'미입력':r.name+' ('+roleTxt(r.roles)+')')}"><span class="nm">${r.name==='__none'?'<span class="flag">미입력</span>':esc(r.name)+(r.roles.length?' <small class="hint">'+esc(roleTxt(r.roles))+'</small>':'')}</span><div class="bar"><i class="${r.name==='__none'?'none':''}" style="width:${r.n/mx*100}%"></i></div><span class="n">${r.n}</span></button>`).join('')}</div>
-    <div class="hint" style="margin-top:4px">회사를 누르면 아래 목록이 그 회사 빌딩으로 좁혀져요. 한 빌딩에 시설·보안·미화 회사가 다르면 각 회사에 모두 세요.</div>`:'<div class="hint">빌딩이 없어요.</div>'}
+    ${rows.length?`<div class="bars cos">${rows.map(r=>`<button type="button" class="barrow${(r.name==='__none'?onlyMissing&&!query:query===r.name)?' on':''}" data-co="${esc(r.name==='__none'?'':r.name)}" title="${esc(r.name==='__none'?'미입력':r.name+' ('+roleTxt(r.roles)+')')}"><span class="nm">${r.name==='__none'?'<span class="flag">미입력</span>':esc(r.name)+(r.roles.length?' <small class="hint">'+esc(roleTxt(r.roles))+'</small>':'')}</span><div class="bar"><i class="${r.name==='__none'?'none':''}" style="width:${r.n/mx*100}%"></i></div><span class="n">${r.n}</span></button>`).join('')}</div>
+    <div class="hint" style="margin-top:4px">회사를 누르면 아래 목록이 그 회사 빌딩으로 좁혀지고, 한 번 더 누르거나 ‘전체 보기’를 누르면 돌아와요. 한 빌딩에 시설·보안·미화 회사가 다르면 각 회사에 모두 세요.</div>`:'<div class="hint">빌딩이 없어요.</div>'}
     <h3>빌딩 목록</h3>
     <div class="toolbar"><input id="q" placeholder="빌딩명·주소·관리사 검색" value="${esc(query)}" aria-label="검색">
       ${canEdit()?'<button class="btn pri" id="add">빌딩 추가</button>':''}</div>
@@ -674,14 +677,17 @@ function renderDash(){
   $('#miss').onchange=e=>{onlyMissing=e.target.checked;drawMarkers();renderDash()};
   if($('#add'))$('#add').onclick=()=>startEdit(null);
   if($('#fmRev'))$('#fmRev').onclick=openFmReview;
-  p.querySelectorAll('.cos [data-co]').forEach(el=>el.onclick=()=>{const c=el.dataset.co;if(c){query=query===c?'':c;onlyMissing=false}else{query='';onlyMissing=!onlyMissing}drawMarkers();renderDash();const l=p.querySelector('.list');if(l)l.scrollIntoView({behavior:'smooth',block:'start'})});
+  p.querySelectorAll('.cos [data-co]').forEach(el=>el.onclick=()=>{const c=el.dataset.co;if(c){query=query===c?'':c;onlyMissing=false}else{query='';onlyMissing=!onlyMissing}drawMarkers();renderDash();const l=p.querySelector('#blist');if(l)l.scrollIntoView({behavior:'smooth',block:'start'})});
   bindList(p);
 }
-function listHtml(vis,zb){return vis.length?`<ul class="list">${vis.map(b=>`<li><button data-id="${esc(b.id)}"><span class="nm">${esc(b.name)}</span>
+function filtChip(n){if(!query&&!onlyMissing)return '';const t=[query?`‘${esc(query)}’`:'',onlyMissing?'관리사 미입력':''].filter(Boolean).join(' · ');
+  return `<div class="filt"><span>${t} 빌딩만 보는 중 · ${n}곳</span><button type="button" class="btn" data-clr>✕ 전체 보기</button></div>`}
+function listHtml(vis,zb){return filtChip(vis.length)+(vis.length?`<ul class="list">${vis.map(b=>`<li><button data-id="${esc(b.id)}"><span class="nm">${esc(b.name)}</span>
       <span class="num">${fmtPy(b.gfa)}${staffTotal(b)?'<br><small>'+staffTotal(b)+'명</small>':''}</span>
       <span class="sub">${hasPos(b)?'':'<span class="flag">위치 없음</span> · '}${esc(b.district||'')}${zone==='all'&&b.zone?' · '+esc(ZNAME[b.zone]||''):''} · ${hasFM(b)?mgmtCos(b).map(o=>esc(o.name)+'<small>('+esc(roleTxt(o.roles))+')</small>').join(', '):'<span class="flag">관리사 미입력</span>'}</span></button></li>`).join('')}</ul>`
-      :`<div class="hint" style="padding:16px 0">${zb.length?'조건에 맞는 빌딩이 없어요.':'이 권역에 등록된 빌딩이 없어요.'}</div>`}
-function bindList(root){root.querySelectorAll('.list [data-id]').forEach(b=>b.onclick=()=>openDetail(b.dataset.id,true))}
+      :`<div class="hint" style="padding:16px 0">${zb.length?'조건에 맞는 빌딩이 없어요.':'이 권역에 등록된 빌딩이 없어요.'}</div>`)}
+function bindList(root){root.querySelectorAll('.list [data-id]').forEach(b=>b.onclick=()=>openDetail(b.dataset.id,true));
+  root.querySelectorAll('[data-clr]').forEach(b=>b.onclick=()=>{query='';onlyMissing=false;drawMarkers();renderDash();fitZone()})}
 function refreshList(){const el=$('#blist');if(!el)return renderDash();el.innerHTML=listHtml(visible(),buildings.filter(inZone));bindList(el)}
 function openDetail(id,fly){
   selId=id;mode='detail';photoIdx=0;delArm=false;setPlacing(false);drawMarkers();renderDetail();$('#panel').scrollTop=0;
