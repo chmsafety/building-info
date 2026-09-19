@@ -56,11 +56,11 @@ header h1{font-size:16px;margin:0;font-weight:700;white-space:nowrap}
 .menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--paper);border:1px solid var(--line);border-radius:10px;min-width:170px;padding:6px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.12)}
 .menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:6px}
 .menu button:hover{background:var(--bg)}
-.zones{display:flex;gap:6px;padding:8px 16px;background:var(--paper);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:thin}
+.zones{display:grid;gap:6px;padding:8px 16px;background:var(--paper);border-bottom:1px solid var(--line)}
+.zrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
 .zone{flex:none;padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--paper);font-size:13px;white-space:nowrap}
 .zone[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
-.zsep{flex:none;width:1px;background:var(--line);margin:4px 4px}
-.zlbl{flex:none;align-self:center;font-size:12px;color:var(--ink2);font-weight:600}
+.zlbl{flex:none;width:46px;font-size:12px;color:var(--ink2);font-weight:600}
 .zone small{opacity:.7;margin-left:4px}
 main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 #map{min-height:0;height:100%;background:#dde6e7}
@@ -171,6 +171,10 @@ td select{width:auto;padding:4px 6px}
   .kpis{grid-template-columns:repeat(2,1fr)}
   .who .nmtxt{display:none}
   .fx{grid-template-columns:1fr}.fxp{display:none}
+  .zones{padding:8px 12px;gap:6px}
+  .zrow{gap:5px}
+  .zone{padding:5px 10px;font-size:12.5px}
+  .zlbl{width:auto;font-size:11px;margin-right:2px}
 }
 </style>
 </head>
@@ -390,10 +394,12 @@ const sizeOk=b=>!minPy||(+b.gfa||0)>=minPy*PY;
 function inZone(b){return (zone==='all'||b.zone===zone)&&sizeOk(b)}
 function renderZones(){
   const sb2=buildings.filter(sizeOk);const cnt={};for(const b of sb2)cnt[b.zone]=(cnt[b.zone]||0)+1;
-  $('#zones').innerHTML=ZONES.map(z=>{const n=z.id==='all'?sb2.length:(cnt[z.id]||0);
+  // 2단 배치: 윗줄 지역(권역), 아랫줄 연면적 — 옆으로 스크롤하지 않도록 줄바꿈
+  $('#zones').innerHTML=`<div class="zrow" role="group" aria-label="지역"><span class="zlbl">지역</span>`
+    +ZONES.map(z=>{const n=z.id==='all'?sb2.length:(cnt[z.id]||0);
     return `<button class="zone" data-z="${z.id}" aria-pressed="${z.id===zone}">${esc(z.name)}<small>${n}</small></button>`}).join('')
-    +`<span class="zsep" aria-hidden="true"></span><span class="zlbl">연면적</span>`
-    +SIZES.map(([v,l])=>`<button class="zone" data-sz="${v}" aria-pressed="${v===minPy}">${l}</button>`).join('');
+    +`</div><div class="zrow" role="group" aria-label="연면적"><span class="zlbl">연면적</span>`
+    +SIZES.map(([v,l])=>`<button class="zone" data-sz="${v}" aria-pressed="${v===minPy}">${l}</button>`).join('')+`</div>`;
   $('#zones').querySelectorAll('[data-sz]').forEach(b=>b.onclick=()=>{minPy=+b.dataset.sz;renderZones();drawMarkers();if(mode==='dash')renderDash();fitZone()});
   $('#zones').querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{zone=b.dataset.z;mode='dash';selId=null;renderZones();drawMarkers();renderPanel();fitZone()});
 }
