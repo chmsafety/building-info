@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>로드뷰</title>
+<style>
+html,body{margin:0;height:100%;background:#1d2126;font-family:"IBM Plex Sans KR",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+#rv{position:absolute;inset:0}
+#msg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#cfd8da;font-size:13px;padding:16px;line-height:1.6}
+#msg a{color:#6FD3D6}
+.lbl{background:#0E5E66;color:#fff;padding:4px 9px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+</style>
+</head>
+<body>
+<div id="rv"></div>
+<div id="msg">로드뷰를 불러오는 중…</div>
+<script>
+'use strict';
+/* ===== 설정: 카카오 개발자 사이트 → 내 애플리케이션 → 앱 키 → JavaScript 키 ===== */
+const KAKAO_JS_KEY = 'f2b9a3d0e4bec6c45eb64f3c88c96562';
+
+/* 주소 뒤 #위도,경도,빌딩명 으로 위치를 받음 (index.html 이 넣어 줌) */
+const [la, ln, ...rest] = decodeURIComponent(location.hash.slice(1)).split(',');
+const lat = +la, lng = +ln, name = rest.join(',').slice(0, 60);
+const msg = document.getElementById('msg');
+const kakaoLink = `https://map.kakao.com/link/roadview/${lat},${lng}`;
+function say(html){ msg.style.display = 'grid'; msg.innerHTML = html; }
+
+if (!isFinite(lat) || !isFinite(lng)) say('빌딩 위치가 없어 로드뷰를 띄울 수 없어요.');
+else if (KAKAO_JS_KEY.startsWith('YOUR-')) say('roadview.html 에 카카오 JavaScript 키를 넣어 주세요.');
+else {
+  const sc = document.createElement('script');
+  sc.src = 'https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey=' + encodeURIComponent(KAKAO_JS_KEY);
+  sc.onerror = () => say(`로드뷰를 불러오지 못했어요.<br><a href="${kakaoLink}" target="_blank" rel="noopener">카카오맵에서 보기</a>`);
+  sc.onload = () => { try { kakao.maps.load(start); } catch (_) { sc.onerror(); } };
+  document.head.appendChild(sc);
+}
+
+function start(){
+  const pos = new kakao.maps.LatLng(lat, lng);
+  const rv = new kakao.maps.Roadview(document.getElementById('rv'));
+  const client = new kakao.maps.RoadviewClient();
+  const radii = [60, 150, 300];
+  const tryFind = i => {
+    if (i >= radii.length) { say(`이 빌딩 300m 안에 로드뷰가 없어요.<br><a href="${kakaoLink}" target="_blank" rel="noopener">카카오맵에서 보기</a>`); return; }
+    client.getNearestPanoId(pos, radii[i], id => { if (id === null || id === undefined) tryFind(i + 1); else rv.setPanoId(id, pos); });
+  };
+  kakao.maps.event.addListener(rv, 'init', () => {
+    msg.style.display = 'none';
+    // 빌딩 쪽을 바라보게 (조금 올려다보도록 높이 25m 지점을 겨눔)
+    try {
+      const ov = new kakao.maps.CustomOverlay({ position: pos, content: label(), xAnchor: .5, yAnchor: 1 });
+      ov.setMap(rv); ov.setAltitude(25);
+      rv.setViewpoint(rv.getProjection().viewpointFromCoords(ov.getPosition(), ov.getAltitude()));
+    } catch (_) {
+      const p = rv.getPosition();
+      const dx = (lng - p.getLng()) * Math.cos(lat * Math.PI / 180), dy = lat - p.getLat();
+      rv.setViewpoint({ pan: (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360, tilt: 0, zoom: 0 });
+    }
+  });
+  addEventListener('resize', () => rv.relayout());
+  tryFind(0);
+}
+function label(){ const d = document.createElement('div'); d.className = 'lbl'; d.textContent = name || '빌딩'; return d; }
+</script>
+</body>
+</html>

@@ -56,11 +56,11 @@ header h1{font-size:16px;margin:0;font-weight:700;white-space:nowrap}
 .menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--paper);border:1px solid var(--line);border-radius:10px;min-width:170px;padding:6px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.12)}
 .menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:6px}
 .menu button:hover{background:var(--bg)}
-.zones{display:flex;gap:6px;padding:8px 16px;background:var(--paper);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:thin}
+.zones{display:grid;gap:6px;padding:8px 16px;background:var(--paper);border-bottom:1px solid var(--line)}
+.zrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
 .zone{flex:none;padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--paper);font-size:13px;white-space:nowrap}
 .zone[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
-.zsep{flex:none;width:1px;background:var(--line);margin:4px 4px}
-.zlbl{flex:none;align-self:center;font-size:12px;color:var(--ink2);font-weight:600}
+.zlbl{flex:none;width:46px;font-size:12px;color:var(--ink2);font-weight:600}
 .zone small{opacity:.7;margin-left:4px}
 main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 #map{min-height:0;height:100%;background:#dde6e7}
@@ -72,6 +72,34 @@ main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 .maplegend span{display:flex;align-items:center;gap:5px}
 .lg{width:12px;height:12px;border-radius:3px;display:inline-block;border:2px solid #0E5E66}
 .lg.on{background:#0E8A94}.lg.off{background:#fff;border-color:#E0662A}
+.lg.bid{border-radius:50%;border-color:#D92D20;background:rgba(217,45,32,.25)}
+/* 나라장터 입찰 진행 중인 빌딩: 지도 위 깜빡이는 표시 */
+.bidpin{position:relative;width:18px;height:18px;cursor:pointer;border:0;padding:0;background:none}
+.bidpin i{position:absolute;inset:0;border-radius:50%;background:#D92D20;border:2px solid #fff;box-shadow:0 0 0 1px #D92D20}
+.bidpin::before,.bidpin::after{content:"";position:absolute;inset:-2px;border-radius:50%;border:3px solid #D92D20;animation:bidping 1.6s ease-out infinite;pointer-events:none}
+.bidpin::after{animation-delay:.8s}
+.bidpin b{position:absolute;z-index:2;left:50%;bottom:calc(100% + 12px);box-shadow:0 1px 4px rgba(0,0,0,.25);transform:translateX(-50%);background:#D92D20;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:99px;white-space:nowrap;animation:bidblink 1.2s steps(2,start) infinite}
+@keyframes bidping{0%{transform:scale(1);opacity:.9}100%{transform:scale(3.4);opacity:0}}
+@keyframes bidblink{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.bidpin::before,.bidpin::after,.bidpin b{animation:none}.bidpin::before{transform:scale(1.8);opacity:.5}}
+.bidbox{margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.bidbox.on{border-color:#D92D20}
+.bidbox .hd{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bidbox .hd b{font-size:14px}.bidbox .hd .btn{margin-left:auto;padding:4px 10px;font-size:12px}
+.bidk{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.bidk button{border:0;background:var(--bg);border-radius:8px;padding:6px 8px;text-align:left}
+.bidk button[aria-pressed="true"]{outline:2px solid #D92D20}
+.bidk b{display:block;font-size:17px;font-variant-numeric:tabular-nums}.bidk span{font-size:11px;color:var(--ink2)}
+.bids{list-style:none;margin:8px 0 0;padding:0;font-size:13px}
+.bids li{padding:7px 0;border-top:1px dashed var(--line);display:grid;gap:2px}
+.bids .t{font-weight:600}.bids .t a{color:inherit}
+.bids .m{font-size:12px;color:var(--ink2)}
+.bids .bn{border:0;background:none;padding:0;color:var(--pin);font-weight:600;font-size:12px;text-align:left}
+.dday{font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;background:#D92D20;color:#fff;margin-right:4px}
+.dday.end{background:var(--chip);color:var(--ink2)}.dday.win{background:var(--ok);color:var(--paper)}.dday.new{background:var(--hi);color:#1B2A2F}
+.bids .hide{border:0;background:none;color:var(--ink2);font-size:11px;padding:0;text-decoration:underline;justify-self:start}
+.bids li.hid{opacity:.5}
+.tabs{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
 .v3{position:absolute;inset:0;z-index:20;background:#1d2126}
 .v3 iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .v3bar{position:absolute;left:10px;top:10px;right:60px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;z-index:2;pointer-events:none}
@@ -121,6 +149,11 @@ h3{font-size:13px;color:var(--ink2);font-weight:600;margin:20px 0 8px;padding-bo
 .back{border:0;background:none;color:var(--ink2);padding:0;margin-bottom:8px}
 .photo{aspect-ratio:16/10;background:var(--bg);border-radius:10px;overflow:hidden;display:grid;place-items:center;color:var(--ink2);font-size:13px}
 .photo img{width:100%;height:100%;object-fit:cover}
+.photo iframe{width:100%;height:100%;border:0;display:block}
+.phtabs{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.phtabs button{padding:4px 12px;border-radius:99px;border:1px solid var(--line);background:var(--paper);font-size:12px}
+.phtabs button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.phtabs a{margin-left:auto;font-size:12px;color:var(--pin)}
 .thumbs{display:flex;gap:6px;margin-top:6px;overflow-x:auto}
 .thumbs button{padding:0;border:2px solid transparent;border-radius:6px;overflow:hidden;width:58px;height:40px;flex:none;background:var(--bg)}
 .thumbs button[aria-current="true"]{border-color:var(--hi)}.thumbs img{width:100%;height:100%;object-fit:cover}
@@ -171,6 +204,10 @@ td select{width:auto;padding:4px 6px}
   .kpis{grid-template-columns:repeat(2,1fr)}
   .who .nmtxt{display:none}
   .fx{grid-template-columns:1fr}.fxp{display:none}
+  .zones{padding:8px 12px;gap:6px}
+  .zrow{gap:5px}
+  .zone{padding:5px 10px;font-size:12.5px}
+  .zlbl{width:auto;font-size:11px;margin-right:2px}
 }
 </style>
 </head>
@@ -202,6 +239,7 @@ td select{width:auto;padding:4px 6px}
         <button role="menuitem" id="mPw">비밀번호 변경</button>
         <button role="menuitem" id="mAdmin" class="hidden">계정 관리</button>
         <button role="menuitem" id="mImport" class="hidden">건축물대장 가져오기</button>
+        <button role="menuitem" id="mBid" class="hidden">나라장터 입찰 가져오기</button>
         <button role="menuitem" id="mCsv">CSV 내보내기</button>
         <button role="menuitem" id="mOut">로그아웃</button>
       </div>
@@ -212,7 +250,7 @@ td select{width:auto;padding:4px 6px}
     <div style="position:relative;min-height:0">
       <div id="map" aria-label="지도"></div>
       <button class="btn map3d" id="v3open" type="button">실사 3D</button>
-      <div class="maplegend" aria-label="범례"><span><i class="lg on"></i>관리사 입력</span><span><i class="lg off"></i>미입력</span></div>
+      <div class="maplegend" aria-label="범례"><span><i class="lg on"></i>관리사 입력</span><span><i class="lg off"></i>미입력</span><span><i class="lg bid"></i>입찰 진행</span></div>
       <div class="banner hidden" id="banner" style="z-index:10">지도에서 빌딩 위치를 누르세요 · Esc 로 취소</div>
       <div class="v3 hidden" id="v3wrap"><iframe id="v3" title="실사 3D 지도"></iframe>
         <div class="v3bar"><button class="btn" id="v3close" type="button">← 지도로 돌아가기</button><span id="v3msg"></span></div></div>
@@ -288,7 +326,9 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 let sb=null, me=null, buildings=[], names={}, zone='all', query='', onlyMissing=false;
 let minPy=0;   // 연면적 필터 (평): 0=전체
 let fmSug=[], fmRun=null;   // 관리사 자동 검색: 검토 대기 목록, 마지막 실행
+let bidLinks=[], bidRun=null, bidOnly=false, bidTab='open';   // 나라장터 입찰: 빌딩과 연결된 공고, 마지막 확인
 let mode='dash', selId=null, draft=null, placing=false, photoIdx=0, delArm=false;
+let phTab=null;   // 상세화면 위쪽: 'photo'(등록 사진) | 'rv'(카카오 로드뷰) · null=자동(사진 없으면 로드뷰)
 const signed=new Map(); // 사진 경로 → {url, exp}
 const canEdit=()=>me&&['admin','editor'].includes(me.role);
 const isAdmin=()=>me&&me.role==='admin';
@@ -337,7 +377,7 @@ async function loadMe(uid){
 }
 async function logout(msg){
   await sb.auth.signOut().catch(()=>{});
-  me=null;buildings=[];signed.clear();close3D();
+  me=null;buildings=[];bidLinks=[];signed.clear();close3D();drawBidPins();
   show('login');$('#lerr').textContent=msg||'';$('#lid').focus();
 }
 sb&&sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT'&&me){me=null;show('login')}});
@@ -355,6 +395,7 @@ async function enterApp(){
   const r=$('#whoRole');r.textContent={admin:'관리자',editor:'편집자',viewer:'조회자'}[me.role];r.className='role '+me.role;
   $('#mAdmin').classList.toggle('hidden',!isAdmin());
   $('#mImport').classList.toggle('hidden',!isAdmin());
+  $('#mBid').classList.toggle('hidden',!isAdmin());
   $('#mCsv').classList.toggle('hidden',!canEdit());
   if(!mapInit){mapInit=true;initMap()}
   setTimeout(()=>map&&map.resize(),50);
@@ -368,12 +409,12 @@ async function loadAll(){
   if(error){toast('자료를 불러오지 못했어요: '+error.message);return}
   buildings=bs||[];names=Object.fromEntries((ps||[]).map(p=>[p.id,p.name]));
   for(const b of buildings)if(!b.zone)b.zone=autoZone(b.region,b.district);
-  await loadFmSug();
+  await Promise.all([loadFmSug(),loadBids()]);
   renderZones();drawMarkers();renderPanel();
   firstFit();
   loadFacadesInView();if(v3open&&!v3link)send3D(null);
 }
-addEventListener('focus',()=>{if(me&&mode!=='edit')loadAll()});
+addEventListener('focus',()=>{if(me&&mode!=='edit'&&!document.querySelector('#ph iframe'))loadAll()});   // 로드뷰를 보는 중엔 다시 그리지 않음
 
 /* ================= 메뉴 ================= */
 $('#whoBtn').onclick=e=>{e.stopPropagation();const m=$('#whoMenu');m.classList.toggle('hidden');$('#whoBtn').setAttribute('aria-expanded',String(!m.classList.contains('hidden')))};
@@ -382,6 +423,7 @@ $('#mOut').onclick=()=>logout();
 $('#mPw').onclick=()=>openPwModal(false);
 $('#mAdmin').onclick=()=>openAdmin();
 $('#mImport').onclick=()=>openImport();
+$('#mBid').onclick=()=>openBidSync();
 $('#mCsv').onclick=exportCsv;
 
 /* ================= 권역 탭 ================= */
@@ -390,10 +432,12 @@ const sizeOk=b=>!minPy||(+b.gfa||0)>=minPy*PY;
 function inZone(b){return (zone==='all'||b.zone===zone)&&sizeOk(b)}
 function renderZones(){
   const sb2=buildings.filter(sizeOk);const cnt={};for(const b of sb2)cnt[b.zone]=(cnt[b.zone]||0)+1;
-  $('#zones').innerHTML=ZONES.map(z=>{const n=z.id==='all'?sb2.length:(cnt[z.id]||0);
+  // 2단 배치: 윗줄 지역(권역), 아랫줄 연면적 — 옆으로 스크롤하지 않도록 줄바꿈
+  $('#zones').innerHTML=`<div class="zrow" role="group" aria-label="지역"><span class="zlbl">지역</span>`
+    +ZONES.map(z=>{const n=z.id==='all'?sb2.length:(cnt[z.id]||0);
     return `<button class="zone" data-z="${z.id}" aria-pressed="${z.id===zone}">${esc(z.name)}<small>${n}</small></button>`}).join('')
-    +`<span class="zsep" aria-hidden="true"></span><span class="zlbl">연면적</span>`
-    +SIZES.map(([v,l])=>`<button class="zone" data-sz="${v}" aria-pressed="${v===minPy}">${l}</button>`).join('');
+    +`</div><div class="zrow" role="group" aria-label="연면적"><span class="zlbl">연면적</span>`
+    +SIZES.map(([v,l])=>`<button class="zone" data-sz="${v}" aria-pressed="${v===minPy}">${l}</button>`).join('')+`</div>`;
   $('#zones').querySelectorAll('[data-sz]').forEach(b=>b.onclick=()=>{minPy=+b.dataset.sz;renderZones();drawMarkers();if(mode==='dash')renderDash();fitZone()});
   $('#zones').querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{zone=b.dataset.z;mode='dash';selId=null;renderZones();drawMarkers();renderPanel();fitZone()});
 }
@@ -452,7 +496,7 @@ async function initMap(){
 const rad=g=>Math.max(6,Math.min(22,Math.sqrt((+g||0)/1500)));
 function visible(){
   const q=query.trim().toLowerCase();
-  return buildings.filter(b=>inZone(b)&&(!onlyMissing||!hasFM(b))&&(!q||[b.name,b.address,b.district,b.fm?.company,...CATS.map(([k])=>b.staff?.[k]?.company)].some(x=>String(x||'').toLowerCase().includes(q))));
+  return buildings.filter(b=>inZone(b)&&(!onlyMissing||!hasFM(b))&&(!bidOnly||bidOpenOf(b.id).length)&&(!q||[b.name,b.address,b.district,b.fm?.company,...CATS.map(([k])=>b.staff?.[k]?.company)].some(x=>String(x||'').toLowerCase().includes(q))));
 }
 const hasPos=b=>b&&b.lat!=null&&b.lng!=null&&isFinite(b.lat)&&isFinite(b.lng);
 function drawMarkers(){
@@ -466,7 +510,7 @@ function drawMarkers(){
       properties:{id:b.id,name:b.name,r:rad(b.gfa),fill:sel?hi:(fm?pin:'#ffffff'),stroke:sel?'#1B2A2F':(fm?pin:'#E0662A'),sw:sel?3:2,op:sel?1:(fm?.8:.9)}});
   }
   map.getSource('bld').setData({type:'FeatureCollection',features});
-  syncBoxes();drawTmp();
+  syncBoxes();drawTmp();drawBidPins();
 }
 function drawTmp(){
   if(tmpMarker){tmpMarker.remove();tmpMarker=null}
@@ -654,7 +698,7 @@ function renderDash(){
     for(const o of cs){const e=by[coKey(o.name)]||(by[coKey(o.name)]={name:o.name,n:0,roles:new Set()});e.n++;o.roles.forEach(r=>e.roles.add(r))}}
   const rows=Object.values(by).sort((a,b)=>b.n-a.n||a.name.localeCompare(b.name,'ko')).map(e=>({...e,roles:ROLE_ORD.filter(r=>e.roles.has(r)&&r!=='pm')}));
   if(none)rows.push({name:'__none',n:none,roles:[]});
-  const mx=Math.max(1,...rows.map(r=>r.n));
+  const mx=100;   // 막대 기준: 100곳 = 가득 (넘으면 가득 채움)
   p.innerHTML=`<div class="pad">
     <h2 style="margin-top:0">${esc(ZNAME[zone])}</h2>
     <div class="kpis" style="margin-top:10px">
@@ -663,34 +707,38 @@ function renderDash(){
       <div class="kpi"><b>${n0(st)}</b><span>관리 인력</span></div>
       <div class="kpi"><b>${zb.length?Math.round(withFM/zb.length*100):0}%</b><span>관리사 입력</span></div>
     </div>
+    ${bidBox(zb)}
     ${fmBox(zb)}
     <h3>관리회사별 빌딩 수 <span class="hint">(시설·보안·미화 · ${rows.filter(r=>r.name!=='__none').length}개사)</span></h3>
-    ${rows.length?`<div class="bars cos">${rows.map(r=>`<button type="button" class="barrow${(r.name==='__none'?onlyMissing&&!query:query===r.name)?' on':''}" data-co="${esc(r.name==='__none'?'':r.name)}" title="${esc(r.name==='__none'?'미입력':r.name+' ('+roleTxt(r.roles)+')')}"><span class="nm">${r.name==='__none'?'<span class="flag">미입력</span>':esc(r.name)+(r.roles.length?' <small class="hint">'+esc(roleTxt(r.roles))+'</small>':'')}</span><div class="bar"><i class="${r.name==='__none'?'none':''}" style="width:${r.n/mx*100}%"></i></div><span class="n">${r.n}</span></button>`).join('')}</div>
+    ${rows.length?`<div class="bars cos">${rows.map(r=>`<button type="button" class="barrow${(r.name==='__none'?onlyMissing&&!query:query===r.name)?' on':''}" data-co="${esc(r.name==='__none'?'':r.name)}" title="${esc(r.name==='__none'?'미입력':r.name+' ('+roleTxt(r.roles)+')')}"><span class="nm">${r.name==='__none'?'<span class="flag">미입력</span>':esc(r.name)+(r.roles.length?' <small class="hint">'+esc(roleTxt(r.roles))+'</small>':'')}</span><div class="bar"><i class="${r.name==='__none'?'none':''}" style="width:${Math.min(100,r.n/mx*100)}%"></i></div><span class="n">${r.n}</span></button>`).join('')}</div>
     <div class="hint" style="margin-top:4px">회사를 누르면 아래 목록이 그 회사 빌딩으로 좁혀지고, 한 번 더 누르거나 ‘전체 보기’를 누르면 돌아와요. 한 빌딩에 시설·보안·미화 회사가 다르면 각 회사에 모두 세요.</div>`:'<div class="hint">빌딩이 없어요.</div>'}
     <h3>빌딩 목록</h3>
     <div class="toolbar"><input id="q" placeholder="빌딩명·주소·관리사 검색" value="${esc(query)}" aria-label="검색">
       ${canEdit()?'<button class="btn pri" id="add">빌딩 추가</button>':''}</div>
-    <label class="keep" style="margin-top:8px"><input type="checkbox" id="miss" ${onlyMissing?'checked':''}> 관리사 미입력만</label>
+    <div style="display:flex;gap:16px;flex-wrap:wrap"><label class="keep" style="margin-top:8px"><input type="checkbox" id="miss" ${onlyMissing?'checked':''}> 관리사 미입력만</label>
+    <label class="keep" style="margin-top:8px"><input type="checkbox" id="bidonly" ${bidOnly?'checked':''}> 입찰 진행 중인 빌딩만</label></div>
     <div id="blist">${listHtml(vis,zb)}</div>
   </div>`;
   const qi=$('#q');qi.oninput=()=>{query=qi.value;drawMarkers();refreshList()};   // 입력칸은 다시 그리지 않음 (한글 조합이 끊기지 않게)
   $('#miss').onchange=e=>{onlyMissing=e.target.checked;drawMarkers();renderDash()};
+  $('#bidonly').onchange=e=>{bidOnly=e.target.checked;drawMarkers();renderDash();if(bidOnly)fitZone()};
+  bindBidBox(p);
   if($('#add'))$('#add').onclick=()=>startEdit(null);
   if($('#fmRev'))$('#fmRev').onclick=openFmReview;
   p.querySelectorAll('.cos [data-co]').forEach(el=>el.onclick=()=>{const c=el.dataset.co;if(c){query=query===c?'':c;onlyMissing=false}else{query='';onlyMissing=!onlyMissing}drawMarkers();renderDash();const l=p.querySelector('#blist');if(l)l.scrollIntoView({behavior:'smooth',block:'start'})});
   bindList(p);
 }
-function filtChip(n){if(!query&&!onlyMissing)return '';const t=[query?`‘${esc(query)}’`:'',onlyMissing?'관리사 미입력':''].filter(Boolean).join(' · ');
+function filtChip(n){if(!query&&!onlyMissing&&!bidOnly)return '';const t=[query?`‘${esc(query)}’`:'',onlyMissing?'관리사 미입력':'',bidOnly?'입찰 진행 중':''].filter(Boolean).join(' · ');
   return `<div class="filt"><span>${t} 빌딩만 보는 중 · ${n}곳</span><button type="button" class="btn" data-clr>✕ 전체 보기</button></div>`}
-function listHtml(vis,zb){return filtChip(vis.length)+(vis.length?`<ul class="list">${vis.map(b=>`<li><button data-id="${esc(b.id)}"><span class="nm">${esc(b.name)}</span>
+function listHtml(vis,zb){return filtChip(vis.length)+(vis.length?`<ul class="list">${vis.map(b=>`<li><button data-id="${esc(b.id)}"><span class="nm">${esc(b.name)}${bidOpenOf(b.id).length?' <span class="dday">입찰 '+bidOpenOf(b.id).length+'</span>':''}</span>
       <span class="num">${fmtPy(b.gfa)}${staffTotal(b)?'<br><small>'+staffTotal(b)+'명</small>':''}</span>
       <span class="sub">${hasPos(b)?'':'<span class="flag">위치 없음</span> · '}${esc(b.district||'')}${zone==='all'&&b.zone?' · '+esc(ZNAME[b.zone]||''):''} · ${hasFM(b)?mgmtCos(b).map(o=>esc(o.name)+'<small>('+esc(roleTxt(o.roles))+')</small>').join(', '):'<span class="flag">관리사 미입력</span>'}</span></button></li>`).join('')}</ul>`
       :`<div class="hint" style="padding:16px 0">${zb.length?'조건에 맞는 빌딩이 없어요.':'이 권역에 등록된 빌딩이 없어요.'}</div>`)}
 function bindList(root){root.querySelectorAll('.list [data-id]').forEach(b=>b.onclick=()=>openDetail(b.dataset.id,true));
-  root.querySelectorAll('[data-clr]').forEach(b=>b.onclick=()=>{query='';onlyMissing=false;drawMarkers();renderDash();fitZone()})}
+  root.querySelectorAll('[data-clr]').forEach(b=>b.onclick=()=>{query='';onlyMissing=false;bidOnly=false;drawMarkers();renderDash();fitZone()})}
 function refreshList(){const el=$('#blist');if(!el)return renderDash();el.innerHTML=listHtml(visible(),buildings.filter(inZone));bindList(el)}
 function openDetail(id,fly){
-  selId=id;mode='detail';photoIdx=0;delArm=false;setPlacing(false);drawMarkers();renderDetail();$('#panel').scrollTop=0;
+  selId=id;mode='detail';photoIdx=0;delArm=false;phTab=null;setPlacing(false);drawMarkers();renderDetail();$('#panel').scrollTop=0;
   const b=buildings.find(x=>x.id===id);
   if(fly&&b)flyToB(b);
   if(v3open&&!v3link)send3D(null);
@@ -705,11 +753,13 @@ async function renderDetail(){
   const p=$('#panel');const b=buildings.find(x=>x.id===selId);
   if(!b){mode='dash';return renderDash()}
   const ph=b.photos||[];const mx=Math.max(1,...CATS.map(([k])=>+(b.staff?.[k]?.n)||0));
+  const tab=phTab||(ph.length?'photo':'rv');
   const m3=(()=>{const x=box(b);return {n:FACES.filter(([k])=>x.faces[k]).length,vw:x.vw}})();
   const fl=[b.floors_above?`지상 ${b.floors_above}층`:'',b.floors_below?`지하 ${b.floors_below}층`:''].filter(Boolean).join(' / ');
   p.innerHTML=`<div class="pad">
     <button class="back" id="back">← ${esc(ZNAME[zone])}</button>
-    <div class="photo" id="ph">${ph.length?'사진 불러오는 중…':'등록된 사진이 없어요'}</div>
+    <div class="phtabs" role="tablist"><button type="button" role="tab" data-pt="photo" aria-selected="${tab==='photo'}">사진 ${ph.length}</button><button type="button" role="tab" data-pt="rv" aria-selected="${tab==='rv'}">로드뷰</button>${hasPos(b)?`<a href="https://map.kakao.com/link/roadview/${+b.lat},${+b.lng}" target="_blank" rel="noopener noreferrer">카카오맵에서 크게 ↗</a>`:''}</div>
+    <div class="photo" id="ph">${tab==='rv'?(hasPos(b)?`<iframe src="${esc('roadview.html#'+(+b.lat)+','+(+b.lng)+','+encodeURIComponent(b.name||''))}" title="${esc(b.name)} 로드뷰" allowfullscreen></iframe>`:'위치가 없어 로드뷰를 볼 수 없어요'):(ph.length?'사진 불러오는 중…':'등록된 사진이 없어요')}</div>
     <div class="thumbs" id="thumbs"></div>
     <h2>${esc(b.name)}</h2><p class="hint" style="margin:0">${esc(b.address||'주소 미입력')}</p>
     <h3>기본 정보</h3>
@@ -724,6 +774,7 @@ async function renderDetail(){
       ${b.fm?.pm?`<dt>PM</dt><dd>${esc(b.fm.pm)}</dd>`:''}
       <dt>담당자</dt><dd>${esc(b.fm?.manager||'—')}</dd><dt>연락처</dt><dd>${esc(b.fm?.contact||'—')}</dd><dt>계약기간</dt><dd>${esc(b.fm?.period||'—')}</dd>${b.fm?.source?`<dt>출처</dt><dd>${srcLink(b.fm.source)}${b.fm.checked_at?' <span class="hint">· '+esc(b.fm.checked_at)+' 반영</span>':''}</dd>`:''}</dl>
     ${fmSug.filter(x=>x.building_id===b.id).map(x=>sugCard(x,false)).join('')}
+    ${bidDetail(b)}
     <h3>관리 인력 · 총 ${staffTotal(b)}명</h3>
     ${CATS.map(([k,l])=>{const s=b.staff?.[k]||{};const n=+s.n||0;return `<div class="srow"><span>${l}</span><div class="bar"><i style="width:${n/mx*100}%"></i></div><span class="n">${n}명</span>${s.company?`<span class="scomp">${esc(s.company)}</span>`:''}</div>`}).join('')}
     <h3>3D</h3>
@@ -738,13 +789,14 @@ async function renderDetail(){
   $('#back').onclick=()=>{mode='dash';selId=null;drawMarkers();renderDash()};
   if($('#edit'))$('#edit').onclick=()=>startEdit(b);
   $('#v3go').onclick=()=>open3D(b.id,null);
-  bindSug($('#panel'));
+  p.querySelectorAll('[data-pt]').forEach(t=>t.onclick=()=>{if(t.dataset.pt!==tab){phTab=t.dataset.pt;renderDetail()}});
+  bindSug($('#panel'));bindBidList($('#panel'),renderDetail);
   if($('#v3lk'))$('#v3lk').onclick=()=>open3D(b.id,b.id);
   if($('#del'))$('#del').onclick=async()=>{if(!delArm){delArm=true;return renderDetail()}
     const {error}=await sb.from('buildings').delete().eq('id',b.id);
     if(error)return toast('삭제하지 못했어요: '+error.message);
     toast('삭제했어요');mode='dash';selId=null;loadAll()};
-  if(ph.length){const urls=await photoUrls(ph);if(selId!==b.id||mode!=='detail')return;
+  if(tab==='photo'&&ph.length){const urls=await photoUrls(ph);if(selId!==b.id||mode!=='detail')return;
     const show=i=>{photoIdx=i;$('#ph').innerHTML=urls[i]?`<img src="${esc(urls[i])}" alt="${esc(b.name)} 사진">`:'사진을 불러오지 못했어요';
       $('#thumbs').querySelectorAll('button').forEach((t,j)=>t.setAttribute('aria-current',String(j===i)))};
     if(urls.length>1){$('#thumbs').innerHTML=urls.map((u,i)=>`<button data-i="${i}"><img src="${esc(u)}" alt=""></button>`).join('');
@@ -769,7 +821,7 @@ function startEdit(b){
 function collect(){
   const f=$('#ef');if(!f)return;const v=n=>f.elements[n].value.trim();const num=n=>{const s=v(n).replace(/,/g,'');return s===''?null:+s};
   Object.assign(draft,{name:v('name'),address:v('address'),region:v('region')||null,district:v('district')||null,use_type:v('use_type'),owner:v('owner'),
-    completed:v('completed'),floors_above:num('fa'),floors_below:num('fb'),memo:v('memo'),lat:num('lat'),lng:num('lng'),verified:f.elements.verified.checked});
+    completed:v('completed'),floors_above:num('fa'),floors_below:num('fb'),memo:v('memo'),bid_keywords:v('bid_kw'),lat:num('lat'),lng:num('lng'),verified:f.elements.verified.checked});
   draft.zoneAuto=v('zone')==='auto';draft.zone=draft.zoneAuto?autoZone(draft.region,draft.district):v('zone');
   const gm=num('gfa_m2');draft.gfa=gm;
   draft.fm=Object.assign({},draft.fm,{company:v('fm_company'),manager:v('fm_manager'),contact:v('fm_contact'),period:v('fm_period')});
@@ -824,6 +876,8 @@ async function renderEdit(){
     <div class="f"><label for="fm_period">계약기간</label><input id="fm_period" name="fm_period" value="${val(d.fm.period)}" placeholder="예: 2025.01 ~ 2027.12"></div>
     <h3>관리 인력</h3>
     ${CATS.map(([k,l])=>`<div class="stf"><span>${l}</span><input name="s_${k}" inputmode="numeric" aria-label="${l} 인원" placeholder="명" value="${val(d.staff[k]?.n||'')}"><input name="c_${k}" aria-label="${l} 협력사" placeholder="협력사(선택)" value="${val(d.staff[k]?.company)}"></div>`).join('')}
+    <h3>나라장터 입찰</h3>
+    <div class="f"><label for="bid_kw">입찰 검색어 (쉼표로 구분)</label><input id="bid_kw" name="bid_kw" maxlength="300" value="${val(d.bid_keywords)}" placeholder="예: 포스트타워, 여의도우체국"><div class="hint">빌딩명은 자동으로 찾아요. 공고명에 빌딩명 대신 쓰이는 이름(기관 청사명 등)이 있으면 넣어 주세요.</div></div>
     <h3>메모</h3>
     <div class="f"><textarea name="memo" rows="3" aria-label="메모">${val(d.memo)}</textarea></div>
     <label class="keep"><input type="checkbox" name="verified" ${d.verified?'checked':''}> 건축물대장 등으로 확인 완료</label>
@@ -882,6 +936,7 @@ async function save(){
   const row={name:draft.name,address:draft.address||null,region:draft.region,district:draft.district,zone:draft.zone,gfa:draft.gfa,
     floors_above:draft.floors_above,floors_below:draft.floors_below,completed:draft.completed||null,use_type:draft.use_type||null,owner:draft.owner||null,
     lat:draft.lat,lng:draft.lng,photos:draft.photos,fm:draft.fm,staff:draft.staff,memo:draft.memo||null,verified:!!draft.verified,model3d:cleanModel(draft.model3d)};
+  if(buildings.some(x=>'bid_keywords' in x)||draft.bid_keywords)row.bid_keywords=draft.bid_keywords||null;
   $('#save').disabled=true;er.textContent='';
   let res;
   if(draft.isNew)res=await sb.from('buildings').insert({...row,...(draft.id?{id:draft.id}:{})}).select('id');
@@ -1017,7 +1072,7 @@ function srcLink(u){const s=safeUrl(u);if(!s)return esc(u||'');let h=s;try{h=new
   return `<a href="${esc(s)}" target="_blank" rel="noopener noreferrer">${esc(h)}</a>`}
 function fmBox(zb){
   const ids=new Set(zb.map(b=>b.id));const n=fmSug.filter(x=>ids.has(x.building_id)).length;
-  const last=fmRun?`마지막 자동 검색 ${new Date(fmRun.at).toLocaleDateString('ko-KR')}${fmRun.checked!=null?' · '+fmRun.checked+'곳 확인':''}`:'자동 검색 기록이 아직 없어요 (매일 오전 9시)';
+  const last=fmRun?`마지막 자동 검색 ${new Date(fmRun.at).toLocaleDateString('ko-KR')}${fmRun.checked!=null?' · '+fmRun.checked+'곳 확인':''}`:'자동 검색 기록이 아직 없어요 (매주 월요일 오전)';
   return `<div class="fmbox ${n?'on':''}"><span>관리사 자동 검색 · 검토 대기 <b>${n}</b>건</span><span class="hint">${esc(last)}</span>${n?'<button class="btn" id="fmRev" type="button">검토하기</button>':''}</div>`;
 }
 function sugCard(x,withName){
@@ -1054,6 +1109,169 @@ function openFmReview(){
     bindSug(m,()=>{if(document.querySelector('#sugList'))draw()});
   };
   draw();
+}
+
+/* ================= 나라장터 입찰정보 (등록된 빌딩과 연결된 공고만) ================= */
+async function loadBids(){
+  const [a,r]=await Promise.all([
+    sb.from('bid_links').select('bid_no,building_id,keyword,hidden,bids(*)'),
+    sb.from('bid_runs').select('at,mode,matched,new_links,note').order('at',{ascending:false}).limit(1)]);
+  bidLinks=(!a.error&&a.data)?a.data.filter(x=>x.bids&&buildings.some(b=>b.id===x.building_id)):[];
+  bidRun=(!r.error&&r.data&&r.data[0])||null;
+}
+const DAY=864e5;
+const bidCanceled=x=>/취소/.test(x.bids.kind||'');
+const bidIsOpen=x=>!bidCanceled(x)&&x.bids.close_at&&new Date(x.bids.close_at)>new Date();
+const bidIsNew=x=>x.bids.notice_at&&Date.now()-new Date(x.bids.notice_at)<7*DAY;
+const bidOpenOf=id=>bidLinks.filter(x=>x.building_id===id&&!x.hidden&&bidIsOpen(x));
+const fmtWon=v=>{v=+v;if(!v)return '';return v>=1e8?(v/1e8).toFixed(v>=1e9?0:1)+'억원':Math.round(v/1e4).toLocaleString('ko-KR')+'만원'};
+const fmtDt=t=>t?new Date(t).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+function bidBadge(x){
+  const b=x.bids;
+  if(bidCanceled(x))return '<span class="dday end">취소</span>';
+  if(b.winner)return '<span class="dday win">낙찰</span>';
+  if(bidIsOpen(x)){const d=Math.ceil((new Date(b.close_at)-Date.now())/DAY);return `<span class="dday">${d<=0?'오늘 마감':'D-'+d}</span>`}
+  return '<span class="dday end">마감</span>';
+}
+function bidItem(x,withName){
+  const b=x.bids,bl=buildings.find(y=>y.id===x.building_id)||{};const u=safeUrl(b.url);
+  return `<li class="${x.hidden?'hid':''}">
+    ${withName?`<button class="bn" type="button" data-bid-b="${esc(x.building_id)}">${esc(bl.name||'')}</button>`:''}
+    <span class="t">${bidBadge(x)}${bidIsNew(x)&&!b.winner?'<span class="dday new">NEW</span>':''}${u?`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(b.title)}</a>`:esc(b.title)}</span>
+    <span class="m">${[b.demand_org||b.org,'공고 '+fmtDt(b.notice_at),'마감 '+fmtDt(b.close_at),b.price?'추정 '+fmtWon(b.price):'',b.contract_method].filter(Boolean).map(esc).join(' · ')}</span>
+    ${b.winner?`<span class="m">낙찰: <b>${esc(b.winner)}</b>${b.winner_amt?' · '+fmtWon(b.winner_amt):''}${b.winner_rate?' ('+esc(b.winner_rate)+'%)':''}</span>`:''}
+    ${canEdit()?`<button class="hide" type="button" data-bid-hide="${esc(x.bid_no)}|${esc(x.building_id)}|${x.hidden?0:1}">${x.hidden?'다시 보이기':'이 빌딩 공고 아님 · 숨기기'}</button>`:''}
+  </li>`;
+}
+function bindBidList(root,after){
+  root.querySelectorAll('[data-bid-b]').forEach(el=>el.onclick=()=>{closeModal();openDetail(el.dataset.bidB,true)});
+  root.querySelectorAll('[data-bid-hide]').forEach(el=>el.onclick=async()=>{
+    const [bid,bld,h]=el.dataset.bidHide.split('|');
+    const {error}=await sb.rpc('set_bid_hidden',{p_bid:bid,p_building:bld,p_hidden:h==='1'});
+    if(error)return toast('처리하지 못했어요: '+error.message);
+    const l=bidLinks.find(x=>x.bid_no===bid&&x.building_id===bld);if(l)l.hidden=h==='1';
+    toast(h==='1'?'숨겼어요':'다시 보이게 했어요');drawMarkers();if(after)after();
+  });
+}
+const bidSort=(a,b)=>{const oa=bidIsOpen(a),ob=bidIsOpen(b);if(oa!==ob)return oa?-1:1;
+  return oa?new Date(a.bids.close_at)-new Date(b.bids.close_at):new Date(b.bids.notice_at||0)-new Date(a.bids.notice_at||0)};
+function bidBox(zb){
+  const ids=new Set(zb.map(b=>b.id));const L=bidLinks.filter(x=>ids.has(x.building_id)&&!x.hidden);
+  const open=L.filter(bidIsOpen),nw=L.filter(bidIsNew),won=L.filter(x=>x.bids.winner);
+  const nb=new Set(open.map(x=>x.building_id)).size;
+  const last=bidRun?`마지막 확인 ${new Date(bidRun.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}${bidRun.mode==='daily'?' (자동)':''}`:'아직 확인 기록이 없어요 · 매일 오전 7시·오후 6시 자동 확인';
+  return `<div class="bidbox ${open.length?'on':''}">
+    <div class="hd"><b>나라장터 입찰</b><span class="hint">${esc(last)}</span>${L.length?'<button class="btn" type="button" id="bidAll">전체 보기</button>':''}</div>
+    <div class="bidk">
+      <button type="button" data-bidk="open" aria-pressed="${bidOnly}"><b style="color:#D92D20">${open.length}</b><span>진행 중 · ${nb}개 빌딩</span></button>
+      <button type="button" data-bidk="new"><b>${nw.length}</b><span>최근 7일 신규</span></button>
+      <button type="button" data-bidk="won"><b>${won.length}</b><span>낙찰 결과</span></button>
+    </div>
+    ${open.length?`<ul class="bids">${open.sort(bidSort).slice(0,5).map(x=>bidItem(x,true)).join('')}</ul>${open.length>5?`<div class="hint" style="margin-top:4px">외 ${open.length-5}건 — ‘전체 보기’</div>`:''}`
+      :`<div class="hint" style="margin-top:8px">${L.length?'지금 진행 중인 입찰은 없어요.':'이 권역 빌딩과 연결된 공고가 아직 없어요.'}</div>`}
+  </div>`;
+}
+function bindBidBox(p){
+  const all=p.querySelector('#bidAll');if(all)all.onclick=()=>openBidList('open');
+  p.querySelectorAll('[data-bidk]').forEach(el=>el.onclick=()=>{const k=el.dataset.bidk;
+    if(k==='open'){bidOnly=!bidOnly;drawMarkers();renderDash();if(bidOnly)fitZone();const l=p.querySelector('#blist');if(bidOnly&&l)l.scrollIntoView({behavior:'smooth',block:'start'})}
+    else openBidList(k)});
+  const box=p.querySelector('.bidbox');if(box)bindBidList(box,renderDash);
+}
+function bidDetail(b){
+  const L=bidLinks.filter(x=>x.building_id===b.id&&(!x.hidden||canEdit())).sort(bidSort);
+  if(!L.length)return `<h3>나라장터 입찰</h3><div class="hint">연결된 공고가 없어요.${canEdit()?' 공고명에 다른 이름이 쓰이면 ‘정보 수정’에서 입찰 검색어를 넣어 주세요.':''}</div>`;
+  const open=L.filter(x=>!x.hidden&&bidIsOpen(x)).length;
+  return `<h3>나라장터 입찰 · ${L.filter(x=>!x.hidden).length}건${open?` <span class="dday">진행 중 ${open}</span>`:''}</h3><ul class="bids">${L.map(x=>bidItem(x,false)).join('')}</ul>`;
+}
+function openBidList(tab){
+  bidTab=tab||bidTab;
+  const draw=()=>{
+    const ids=new Set(buildings.filter(inZone).map(b=>b.id));
+    const L=bidLinks.filter(x=>ids.has(x.building_id)&&(!x.hidden||bidTab==='hidden'));
+    const T=[['open','진행 중',x=>bidIsOpen(x)&&!x.hidden],['new','최근 7일 신규',x=>bidIsNew(x)&&!x.hidden],['won','낙찰 결과',x=>!!x.bids.winner&&!x.hidden],['all','전체',x=>!x.hidden]];
+    if(canEdit())T.push(['hidden','숨긴 공고',x=>x.hidden]);
+    const cur=T.find(t=>t[0]===bidTab)||T[0];const list=L.filter(cur[2]).sort(bidSort);
+    const m=modal(`<h2>나라장터 입찰 · ${esc(ZNAME[zone])}</h2>
+      <p class="hint" style="margin:0">등록된 빌딩 이름(또는 빌딩별 입찰 검색어)이 공고명에 들어간 시설관리 관련 용역 공고만 모았어요. 공고명을 누르면 나라장터 상세로 가요.</p>
+      <div class="tabs">${T.map(t=>`<button class="zone" type="button" data-tab="${t[0]}" aria-pressed="${t[0]===cur[0]}">${t[1]} <small>${L.filter(t[2]).length}</small></button>`).join('')}</div>
+      ${list.length?`<ul class="bids">${list.map(x=>bidItem(x,true)).join('')}</ul>`:'<p class="hint">해당하는 공고가 없어요.</p>'}
+      <div class="actions"><button class="btn" id="bidX" type="button">닫기</button></div>`);
+    m.querySelector('#bidX').onclick=closeModal;
+    m.querySelectorAll('[data-tab]').forEach(el=>el.onclick=()=>{bidTab=el.dataset.tab;draw()});
+    bindBidList(m,()=>{draw();if(mode==='dash')renderDash()});
+  };
+  draw();
+}
+const bidPins=new Map();
+function drawBidPins(){
+  for(const mk of bidPins.values())mk.remove();bidPins.clear();
+  if(!mapReady||!me)return;
+  for(const b of visible()){
+    const n=bidOpenOf(b.id).length;if(!n||!hasPos(b))continue;
+    const el=document.createElement('button');el.type='button';el.className='bidpin';el.title=`${b.name} · 입찰 진행 ${n}건`;
+    el.innerHTML=`<i></i><b>입찰${n>1?' '+n:''}</b>`;
+    el.onclick=e=>{e.stopPropagation();openDetail(b.id,true)};
+    bidPins.set(b.id,new maplibregl.Marker({element:el}).setLngLat([b.lng,b.lat]).addTo(map));
+  }
+}
+async function bidCall(body){
+  const {data,error}=await sb.functions.invoke('bid-sync',{body});
+  if(error){let msg=error.message;try{const j=await error.context.json();msg=j.error||msg}catch(_){}throw new Error(msg)}
+  if(data&&data.error)throw new Error(data.error);return data;
+}
+function openBidSync(){
+  const m=modal(`<h2>나라장터 입찰 가져오기</h2>
+    <p class="hint" style="margin:0">조달청 나라장터의 <b>용역</b> 입찰공고를 날짜별로 읽어, 공고명에 등록된 빌딩 이름(또는 빌딩별 입찰 검색어)이 들어간 공고만 빌딩에 연결해요. 평소에는 매일 오전 7시·오후 6시에 자동으로 확인하니, 여기서는 처음 한 번 지난 기간을 채우거나 검색어를 바꾼 뒤 다시 확인할 때 쓰세요.</p>
+    <div class="g2" style="margin-top:12px;align-items:end">
+      <div><label for="bdDays">기간</label><select id="bdDays"><option value="7">최근 7일</option><option value="30" selected>최근 30일</option><option value="90">최근 90일</option><option value="180">최근 180일</option></select></div>
+      <label class="keep" style="margin:0 0 10px"><input type="checkbox" id="bdFm" checked> 시설관리 관련 공고만 (청소·경비·설비 등)</label>
+    </div>
+    <div class="actions"><button class="btn" id="bdProbe" type="button">연결 확인</button><button class="btn pri" id="bdGo" type="button">가져오기 시작</button><button class="btn" id="bdWin" type="button">낙찰자 확인</button><button class="btn" id="bdStop" type="button" disabled>멈춤</button><button class="btn" id="bdX" type="button">닫기</button></div>
+    <div class="hint" id="bdSum" style="margin-top:10px"></div>
+    <div class="bar" style="margin-top:6px"><i id="bdBar" style="width:0%"></i></div>
+    <div class="note" id="bdLog" style="max-height:260px;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:11.5px">대기 중</div>`);
+  const log=t=>{const el=m.querySelector('#bdLog');if(el.textContent==='대기 중')el.textContent='';el.textContent+=t+'\n';el.scrollTop=el.scrollHeight};
+  let running=false,stop=false;
+  const keyHint=msg=>/SERVICE|등록되지|인증|KEY/i.test(msg)?' — 공공데이터포털에서 ‘조달청_나라장터 입찰공고정보서비스’(낙찰자는 ‘낙찰정보서비스’) 활용신청이 승인됐는지 확인하세요. 승인 후 1~2시간 뒤부터 쓸 수 있어요.':'';
+  m.querySelector('#bdX').onclick=()=>{stop=true;closeModal()};
+  m.querySelector('#bdStop').onclick=()=>{stop=true;log('— 멈추는 중')};
+  m.querySelector('#bdProbe').onclick=async()=>{
+    log('연결 확인 중…');
+    try{const r=await bidCall({action:'probe'});
+      log(`✔ 연결됨 · ${r.day.slice(4,6)}/${r.day.slice(6)} 용역 공고 ${(+r.total).toLocaleString()}건`);
+      if(r.sample&&r.sample.공고명)log(`  예시: ${r.sample.공고명} · ${r.sample.수요기관||''}`);
+      log(`  검색어가 있는 빌딩 ${r.keywords}/${r.buildings}곳 (주소처럼 생긴 이름은 빼요)`);
+    }catch(e){log('✖ '+e.message+keyHint(e.message))}
+  };
+  m.querySelector('#bdWin').onclick=async()=>{
+    log('낙찰자 확인 중…');
+    try{const r=await bidCall({action:'winners',limit:40});log(`✔ 개찰 지난 공고 ${r.checked}건 확인 · 낙찰자 ${r.got}건${r.err?' · 오류: '+r.err+keyHint(r.err):''}`);if(r.got){await loadAll()}}
+    catch(e){log('✖ '+e.message+keyHint(e.message))}
+  };
+  m.querySelector('#bdGo').onclick=async()=>{
+    if(running)return;running=true;stop=false;
+    const go=m.querySelector('#bdGo'),st=m.querySelector('#bdStop');go.disabled=true;st.disabled=false;
+    const days=+m.querySelector('#bdDays').value,fmOnly=m.querySelector('#bdFm').checked;
+    const list=[];for(let i=days-1;i>=0;i--){const d=new Date(Date.now()+9*3600e3-i*DAY);list.push(d.toISOString().slice(0,10).replace(/-/g,''))}
+    let tot={scan:0,match:0,nw:0,calls:0};
+    try{
+      for(const [k,day] of list.entries()){
+        if(stop)break;lastAct=Date.now();
+        let r,tries=0;
+        while(true){try{r=await bidCall({action:'run',day,fmOnly});break}
+          catch(e){if(++tries>=3||/SERVICE|등록되지|인증|LIMITED|한도|관리자/.test(e.message))throw e;log(`  재시도 (${e.message})`);await new Promise(s=>setTimeout(s,3000))}}
+        tot.scan+=r.scanned;tot.match+=r.matched;tot.nw+=r.newLinks;tot.calls+=r.calls;
+        if(r.matched)log(`${day.slice(4,6)}/${day.slice(6)}: 용역 ${r.scanned}건 중 연결 ${r.matched}건 (새로 ${r.newLinks})`);
+        m.querySelector('#bdBar').style.width=((k+1)/list.length*100).toFixed(1)+'%';
+        m.querySelector('#bdSum').textContent=`진행 ${k+1}/${list.length}일 · 읽은 공고 ${tot.scan.toLocaleString()} · 연결 ${tot.match} · 새로 ${tot.nw} · API 호출 ${tot.calls}`;
+      }
+      log(stop?'— 멈췄어요.':'✔ 공고 확인 끝. 낙찰자도 확인해요…');
+      if(!stop){try{const w=await bidCall({action:'winners',limit:40});log(`  낙찰자 ${w.got}/${w.checked}건 확인${w.err?' · '+w.err:''}`)}catch(e){log('  낙찰자 확인 실패: '+e.message+keyHint(e.message))}}
+    }catch(e){log('✖ '+e.message+keyHint(e.message)+(/LIMITED|한도/.test(e.message)?' — 오늘 API 호출 한도를 다 썼어요. 내일 이어서 하세요.':''))}
+    running=false;go.disabled=false;st.disabled=true;
+    await loadAll();toast(`입찰공고 ${tot.nw}건을 새로 연결했어요`);
+  };
 }
 
 /* ================= 건축물대장(건축HUB) 가져오기 (관리자) ================= */
