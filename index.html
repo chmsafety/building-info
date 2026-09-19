@@ -660,7 +660,7 @@ function renderDash(){
     for(const o of cs){const e=by[coKey(o.name)]||(by[coKey(o.name)]={name:o.name,n:0,roles:new Set()});e.n++;o.roles.forEach(r=>e.roles.add(r))}}
   const rows=Object.values(by).sort((a,b)=>b.n-a.n||a.name.localeCompare(b.name,'ko')).map(e=>({...e,roles:ROLE_ORD.filter(r=>e.roles.has(r)&&r!=='pm')}));
   if(none)rows.push({name:'__none',n:none,roles:[]});
-  const mx=Math.max(1,...rows.map(r=>r.n));
+  const mx=100;   // 막대 기준: 100곳 = 가득 (넘으면 가득 채움)
   p.innerHTML=`<div class="pad">
     <h2 style="margin-top:0">${esc(ZNAME[zone])}</h2>
     <div class="kpis" style="margin-top:10px">
@@ -671,7 +671,7 @@ function renderDash(){
     </div>
     ${fmBox(zb)}
     <h3>관리회사별 빌딩 수 <span class="hint">(시설·보안·미화 · ${rows.filter(r=>r.name!=='__none').length}개사)</span></h3>
-    ${rows.length?`<div class="bars cos">${rows.map(r=>`<button type="button" class="barrow${(r.name==='__none'?onlyMissing&&!query:query===r.name)?' on':''}" data-co="${esc(r.name==='__none'?'':r.name)}" title="${esc(r.name==='__none'?'미입력':r.name+' ('+roleTxt(r.roles)+')')}"><span class="nm">${r.name==='__none'?'<span class="flag">미입력</span>':esc(r.name)+(r.roles.length?' <small class="hint">'+esc(roleTxt(r.roles))+'</small>':'')}</span><div class="bar"><i class="${r.name==='__none'?'none':''}" style="width:${r.n/mx*100}%"></i></div><span class="n">${r.n}</span></button>`).join('')}</div>
+    ${rows.length?`<div class="bars cos">${rows.map(r=>`<button type="button" class="barrow${(r.name==='__none'?onlyMissing&&!query:query===r.name)?' on':''}" data-co="${esc(r.name==='__none'?'':r.name)}" title="${esc(r.name==='__none'?'미입력':r.name+' ('+roleTxt(r.roles)+')')}"><span class="nm">${r.name==='__none'?'<span class="flag">미입력</span>':esc(r.name)+(r.roles.length?' <small class="hint">'+esc(roleTxt(r.roles))+'</small>':'')}</span><div class="bar"><i class="${r.name==='__none'?'none':''}" style="width:${Math.min(100,r.n/mx*100)}%"></i></div><span class="n">${r.n}</span></button>`).join('')}</div>
     <div class="hint" style="margin-top:4px">회사를 누르면 아래 목록이 그 회사 빌딩으로 좁혀지고, 한 번 더 누르거나 ‘전체 보기’를 누르면 돌아와요. 한 빌딩에 시설·보안·미화 회사가 다르면 각 회사에 모두 세요.</div>`:'<div class="hint">빌딩이 없어요.</div>'}
     <h3>빌딩 목록</h3>
     <div class="toolbar"><input id="q" placeholder="빌딩명·주소·관리사 검색" value="${esc(query)}" aria-label="검색">
