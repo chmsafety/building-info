@@ -96,6 +96,7 @@ main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 .bids .m{font-size:12px;color:var(--ink2)}
 .bids .bn{border:0;background:none;padding:0;color:var(--pin);font-weight:600;font-size:12px;text-align:left}
 .dday{font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;background:#D92D20;color:#fff;margin-right:4px}
+.pubtag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;background:#3B5BA9;color:#fff;margin-left:4px;vertical-align:1px}
 .dday.end{background:var(--chip);color:var(--ink2)}.dday.win{background:var(--ok);color:var(--paper)}.dday.new{background:var(--hi);color:#1B2A2F}
 .bids .hide{border:0;background:none;color:var(--ink2);font-size:11px;padding:0;text-decoration:underline;justify-self:start}
 .bids li.hid{opacity:.5}
@@ -337,6 +338,7 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 /* ================= 상태 ================= */
 let sb=null, me=null, buildings=[], names={}, zone='all', query='', onlyMissing=false;
 let minPy=0;   // 연면적 필터 (평): 0=전체
+let pubF='all';   // 구분 필터: all / pub(공공) / priv(민간)
 let fmSug=[], fmRun=null;   // 관리사 자동 검색: 검토 대기 목록, 마지막 실행
 let bidLinks=[], bidRun=null, bidOnly=false, bidTab='open';   // 나라장터 입찰: 빌딩과 연결된 공고, 마지막 확인
 let mode='dash', selId=null, draft=null, placing=false, photoIdx=0, delArm=false;
@@ -443,15 +445,19 @@ $('#mCsv').onclick=exportCsv;
 /* ================= 권역 탭 ================= */
 const SIZES=[[0,'전체'],[10000,'1만평↑'],[20000,'2만평↑'],[30000,'3만평↑']];
 const sizeOk=b=>!minPy||(+b.gfa||0)>=minPy*PY;
-function inZone(b){return (zone==='all'||b.zone===zone)&&sizeOk(b)}
+const pubOk=b=>pubF==='all'||(pubF==='pub'?!!b.is_public:!b.is_public);
+function inZone(b){return (zone==='all'||b.zone===zone)&&sizeOk(b)&&pubOk(b)}
 function renderZones(){
-  const sb2=buildings.filter(sizeOk);const cnt={};for(const b of sb2)cnt[b.zone]=(cnt[b.zone]||0)+1;
+  const sb2=buildings.filter(b=>sizeOk(b)&&pubOk(b));const cnt={};for(const b of sb2)cnt[b.zone]=(cnt[b.zone]||0)+1;
   // 2단 배치: 윗줄 지역(권역), 아랫줄 연면적 — 옆으로 스크롤하지 않도록 줄바꿈
   $('#zones').innerHTML=`<div class="zrow" role="group" aria-label="지역"><span class="zlbl">지역</span>`
     +ZONES.map(z=>{const n=z.id==='all'?sb2.length:(cnt[z.id]||0);
     return `<button class="zone" data-z="${z.id}" aria-pressed="${z.id===zone}">${esc(z.name)}<small>${n}</small></button>`}).join('')
     +`</div><div class="zrow" role="group" aria-label="연면적"><span class="zlbl">연면적</span>`
-    +SIZES.map(([v,l])=>`<button class="zone" data-sz="${v}" aria-pressed="${v===minPy}">${l}</button>`).join('')+`</div>`;
+    +SIZES.map(([v,l])=>`<button class="zone" data-sz="${v}" aria-pressed="${v===minPy}">${l}</button>`).join('')
+    +`<span class="zlbl" style="margin-left:10px">구분</span>`
+    +[['all','전체'],['priv','민간'],['pub','공공']].map(([v,l])=>`<button class="zone" data-pub="${v}" aria-pressed="${v===pubF}">${l}${v==='pub'?`<small>${buildings.filter(b=>b.is_public&&sizeOk(b)).length}</small>`:''}</button>`).join('')+`</div>`;
+  $('#zones').querySelectorAll('[data-pub]').forEach(b=>b.onclick=()=>{pubF=b.dataset.pub;renderZones();drawMarkers();if(mode==='dash')renderDash();fitZone()});
   $('#zones').querySelectorAll('[data-sz]').forEach(b=>b.onclick=()=>{minPy=+b.dataset.sz;renderZones();drawMarkers();if(mode==='dash')renderDash();fitZone()});
   $('#zones').querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{zone=b.dataset.z;mode='dash';selId=null;renderZones();drawMarkers();renderPanel();fitZone()});
 }
@@ -744,7 +750,7 @@ function renderDash(){
 }
 function filtChip(n){if(!query&&!onlyMissing&&!bidOnly)return '';const t=[query?`‘${esc(query)}’`:'',onlyMissing?'관리사 미입력':'',bidOnly?'입찰 진행 중':''].filter(Boolean).join(' · ');
   return `<div class="filt"><span>${t} 빌딩만 보는 중 · ${n}곳</span><button type="button" class="btn" data-clr>✕ 전체 보기</button></div>`}
-function listHtml(vis,zb){return filtChip(vis.length)+(vis.length?`<ul class="list">${vis.map(b=>`<li><button data-id="${esc(b.id)}"><span class="nm">${esc(b.name)}${bidOpenOf(b.id).length?' <span class="dday">입찰 '+bidOpenOf(b.id).length+'</span>':''}</span>
+function listHtml(vis,zb){return filtChip(vis.length)+(vis.length?`<ul class="list">${vis.map(b=>`<li><button data-id="${esc(b.id)}"><span class="nm">${esc(b.name)}${b.is_public?'<span class="pubtag">공공</span>':''}${bidOpenOf(b.id).length?' <span class="dday">입찰 '+bidOpenOf(b.id).length+'</span>':''}</span>
       <span class="num">${fmtPy(b.gfa)}${staffTotal(b)?'<br><small>'+staffTotal(b)+'명</small>':''}</span>
       <span class="sub">${hasPos(b)?'':'<span class="flag">위치 없음</span> · '}${esc(b.district||'')}${zone==='all'&&b.zone?' · '+esc(ZNAME[b.zone]||''):''} · ${hasFM(b)?mgmtCos(b).map(o=>esc(o.name)+'<small>('+esc(roleTxt(o.roles))+')</small>').join(', '):'<span class="flag">관리사 미입력</span>'}</span></button></li>`).join('')}</ul>`
       :`<div class="hint" style="padding:16px 0">${zb.length?'조건에 맞는 빌딩이 없어요.':'이 권역에 등록된 빌딩이 없어요.'}</div>`)}
@@ -777,7 +783,7 @@ async function renderDetail(){
     <div class="phsrc" id="phsrc"></div>
     <div class="thumbs" id="thumbs"></div>
     ${canEdit()?`<button class="btn" id="phFind" type="button" style="margin-top:6px;padding:4px 10px;font-size:12px">웹에서 사진 찾기</button>`:''}
-    <h2>${esc(b.name)}</h2><p class="hint" style="margin:0">${esc(b.address||'주소 미입력')}</p>
+    <h2>${esc(b.name)}${b.is_public?'<span class="pubtag">공공</span>':''}</h2><p class="hint" style="margin:0">${esc(b.address||'주소 미입력')}</p>
     <h3>기본 정보</h3>
     <div class="big">${fmtPy(b.gfa)}</div><div class="hint" style="margin-bottom:10px">연면적 ${fmtM2(b.gfa)}</div>
     <dl><dt>권역</dt><dd>${esc(ZNAME[b.zone]||'—')}</dd>
@@ -839,7 +845,7 @@ function startEdit(b){
 function collect(){
   const f=$('#ef');if(!f)return;const v=n=>f.elements[n].value.trim();const num=n=>{const s=v(n).replace(/,/g,'');return s===''?null:+s};
   Object.assign(draft,{name:v('name'),address:v('address'),region:v('region')||null,district:v('district')||null,use_type:v('use_type'),owner:v('owner'),
-    completed:v('completed'),floors_above:num('fa'),floors_below:num('fb'),memo:v('memo'),bid_keywords:v('bid_kw'),lat:num('lat'),lng:num('lng'),verified:f.elements.verified.checked});
+    completed:v('completed'),floors_above:num('fa'),floors_below:num('fb'),memo:v('memo'),bid_keywords:v('bid_kw'),lat:num('lat'),lng:num('lng'),verified:f.elements.verified.checked,is_public:f.elements.is_public.checked});
   draft.zoneAuto=v('zone')==='auto';draft.zone=draft.zoneAuto?autoZone(draft.region,draft.district):v('zone');
   const gm=num('gfa_m2');draft.gfa=gm;
   draft.fm=Object.assign({},draft.fm,{company:v('fm_company'),manager:v('fm_manager'),contact:v('fm_contact'),period:v('fm_period')});
@@ -898,6 +904,7 @@ async function renderEdit(){
     <div class="f"><label for="bid_kw">입찰 검색어 (쉼표로 구분)</label><input id="bid_kw" name="bid_kw" maxlength="300" value="${val(d.bid_keywords)}" placeholder="예: 포스트타워, 여의도우체국"><div class="hint">빌딩명은 자동으로 찾아요. 공고명에 빌딩명 대신 쓰이는 이름(기관 청사명 등)이 있으면 넣어 주세요.</div></div>
     <h3>메모</h3>
     <div class="f"><textarea name="memo" rows="3" aria-label="메모">${val(d.memo)}</textarea></div>
+    <label class="keep"><input type="checkbox" name="is_public" ${d.is_public?'checked':''}> 공공건물 (공공청사·공공기관 사옥)</label>
     <label class="keep"><input type="checkbox" name="verified" ${d.verified?'checked':''}> 건축물대장 등으로 확인 완료</label>
     <div class="actions"><button class="btn pri" id="save" type="button">저장</button><button class="btn" id="cancel2" type="button">취소</button></div>
     <div class="err" id="err"></div>
@@ -955,6 +962,7 @@ async function save(){
   const row={name:draft.name,address:draft.address||null,region:draft.region,district:draft.district,zone:draft.zone,gfa:draft.gfa,
     floors_above:draft.floors_above,floors_below:draft.floors_below,completed:draft.completed||null,use_type:draft.use_type||null,owner:draft.owner||null,
     lat:draft.lat,lng:draft.lng,photos:draft.photos,fm:draft.fm,staff:draft.staff,memo:draft.memo||null,verified:!!draft.verified,model3d:cleanModel(draft.model3d)};
+  if(buildings.some(x=>'is_public' in x)||draft.is_public)row.is_public=!!draft.is_public;
   if(buildings.some(x=>'bid_keywords' in x)||draft.bid_keywords)row.bid_keywords=draft.bid_keywords||null;
   if(buildings.some(x=>'photo_src' in x)){const s={};for(const p of draft.photos)if(draft.photo_src?.[p])s[p]=draft.photo_src[p];row.photo_src=s}
   $('#save').disabled=true;er.textContent='';
@@ -1308,8 +1316,10 @@ function openImport(){
       <label class="keep" style="margin:0"><input type="checkbox" id="im11" checked> 서울</label>
       <label class="keep" style="margin:0"><input type="checkbox" id="im41" checked> 경기</label>
       <label class="keep" style="margin:0"><input type="checkbox" id="im28" checked> 인천</label>
-      <div><label for="imMin">등록 기준 연면적</label><select id="imMin"><option value="10000" selected>1만평(33,058㎡) 이상</option><option value="20000">2만평 이상</option><option value="30000">3만평 이상</option></select></div>
+      <div><label for="imMin">등록 기준 연면적</label><select id="imMin"><option value="5000">5천평(16,529㎡) 이상</option><option value="10000" selected>1만평(33,058㎡) 이상</option><option value="20000">2만평 이상</option><option value="30000">3만평 이상</option></select></div>
     </div>
+    <div style="margin-top:10px"><label for="imKind">가져올 건물</label><select id="imKind"><option value="office">오피스 빌딩 (업무·방송통신시설, 민간·공공 모두)</option><option value="public">공공청사만 (시청·구청·공공기관 사옥·우체국·법원 등)</option></select>
+      <div class="hint" id="imKindH"></div></div>
     <label class="keep"><input type="checkbox" id="imSkip" checked> 이미 끝낸 시군구는 건너뛰기</label>
     <div class="actions"><button class="btn" id="imProbe" type="button">연결 확인</button><button class="btn pri" id="imGo" type="button">가져오기 시작</button><button class="btn" id="imStop" type="button" disabled>멈춤</button><button class="btn" id="imX" type="button">닫기</button></div>
     <div class="hint" id="imSum" style="margin-top:10px"></div>
@@ -1319,6 +1329,9 @@ function openImport(){
   let running=false;const keep=setInterval(()=>{if(running)lastAct=Date.now()},60000);
   m.querySelector('#imX').onclick=()=>{if(running){impStop=true}closeModal();if(running)toast('가져오기를 멈췄어요. 다시 열어 이어서 할 수 있어요.')};
   m.querySelector('#imStop').onclick=()=>{impStop=true;log('— 멈추는 중 (지금 처리 중인 구간까지 마무리)')};
+  const kindSel=m.querySelector('#imKind'),kindH=m.querySelector('#imKindH');
+  kindSel.onchange=()=>{const pub=kindSel.value==='public';m.querySelector('#imMin').value=pub?'5000':'10000';
+    kindH.textContent=pub?'주용도코드(공공업무시설)·기타용도·건물명(청사·시청·구청·공단·공사·우체국·법원 등)으로 공공청사를 가려요. 이미 등록된 빌딩이 공공청사면 ‘공공’ 표시만 붙여요. 오피스와 따로 진행 기록을 남겨서 처음부터 훑어요.':''};
   m.querySelector('#imProbe').onclick=async()=>{
     log('연결 확인 중…');
     try{const r=await importCall({action:'probe'});
@@ -1329,11 +1342,11 @@ function openImport(){
   m.querySelector('#imGo').onclick=async()=>{
     if(running)return;running=true;impStop=false;
     const go=m.querySelector('#imGo'),st=m.querySelector('#imStop');go.disabled=true;st.disabled=false;
-    const regions=['11','41','28'].filter(r=>m.querySelector('#im'+r).checked);
+    const regions=['11','41','28'].filter(r=>m.querySelector('#im'+r).checked);const kind=kindSel.value;
     const minArea=Math.round(+m.querySelector('#imMin').value*PY);const skip=m.querySelector('#imSkip').checked;
-    let tot={ins:0,found:0,dup:0,nogeo:0,calls:0},zero=[];
+    let tot={ins:0,found:0,dup:0,nogeo:0,calls:0,flag:0},zero=[];
     try{
-      const plan=(await importCall({action:'plan',regions})).list;
+      const plan=(await importCall({action:'plan',regions,mode:kind})).list;
       const todo=plan.filter(p=>!(skip&&p.last&&p.last.done));
       log(`시군구 ${plan.length}곳 중 ${todo.length}곳을 처리해요.`);
       const CH=2;let k=0;const steps=todo.reduce((a,p)=>a+Math.ceil(p.n/CH),0);
@@ -1342,14 +1355,14 @@ function openImport(){
         for(let from=0;from<p.n;from+=CH){
           if(impStop)break;
           let r,tries=0;
-          while(true){try{r=await importCall({action:'run',sgg:p.sgg,from,to:Math.min(p.n,from+CH),minArea,rows:100});break}
+          while(true){try{r=await importCall({action:'run',sgg:p.sgg,from,to:Math.min(p.n,from+CH),minArea,rows:100,mode:kind});break}
             catch(e){if(++tries>=3||/한도|LIMITED|SERVICE_KEY|서비스키|초과|등록되지|관리자/.test(e.message))throw e;log(`  재시도 (${e.message})`);await new Promise(s=>setTimeout(s,3000))}}
           pIns+=r.inserted;pFound+=r.found;pScan+=r.scanned;
-          tot.ins+=r.inserted;tot.found+=r.found;tot.dup+=r.dup;tot.nogeo+=r.noGeo;tot.calls+=r.calls;
+          tot.ins+=r.inserted;tot.flag+=r.flagged||0;tot.found+=r.found;tot.dup+=r.dup;tot.nogeo+=r.noGeo;tot.calls+=r.calls;
           if(r.added&&r.added.length)log(`  + ${r.added.join(', ')}`);
           if(r.geoErr&&!tot.geoWarn){tot.geoWarn=1;log(`  ⚠ 카카오 주소 검색 오류 ${r.geoErr} — 카카오 개발자 사이트에서 '카카오맵' 사용 설정을 켜 주세요. (좌표 없이 등록돼요)`)}
           k++;m.querySelector('#imBar').style.width=(k/steps*100).toFixed(1)+'%';
-          m.querySelector('#imSum').textContent=`진행 ${k}/${steps} · 새로 등록 ${tot.ins} · 이미 있음 ${tot.dup} · 좌표 없음 ${tot.nogeo} · API 호출 ${tot.calls.toLocaleString()}`;
+          m.querySelector('#imSum').textContent=`진행 ${k}/${steps} · 새로 등록 ${tot.ins}${kind==='public'?' · 공공 표시 '+tot.flag:''} · 이미 있음 ${tot.dup} · 좌표 없음 ${tot.nogeo} · API 호출 ${tot.calls.toLocaleString()}`;
         }
         if(impStop)break;
         if(!pScan)zero.push(p.name);
@@ -1359,7 +1372,7 @@ function openImport(){
       if(zero.length)log(`⚠ 결과가 0건인 곳: ${zero.join(', ')} — 행정구역이 바뀐 곳(부천·화성·인천 일부 등)은 코드 업데이트가 필요할 수 있어요.`);
     }catch(e){log('✖ '+e.message+(/LIMITED|한도/.test(e.message)?' — 오늘 API 호출 한도를 다 썼어요. 내일 이어서 하세요.':''))}
     running=false;go.disabled=false;st.disabled=true;
-    if(tot.ins){await loadAll();toast(`빌딩 ${tot.ins}곳을 새로 등록했어요`)}
+    if(tot.ins||tot.flag){await loadAll();toast(`빌딩 ${tot.ins}곳 새로 등록${tot.flag?` · ${tot.flag}곳 공공 표시`:''}`)}
   };
 }
 
@@ -1515,9 +1528,9 @@ async function loadUsers(m){
 /* ================= CSV ================= */
 function exportCsv(){
   if(!canEdit())return;
-  const head=['빌딩명','권역','시도','시군구','주소','연면적(㎡)','연면적(평)','지상층','지하층','준공','용도','소유주','관리회사(시설)','PM','담당자','연락처','계약기간',...CATS.flatMap(([,l])=>[l+'인원',l+'협력사']),'총인원','위도','경도','확인'];
+  const head=['빌딩명','권역','시도','시군구','주소','연면적(㎡)','연면적(평)','지상층','지하층','준공','용도','소유주','관리회사(시설)','PM','담당자','연락처','계약기간',...CATS.flatMap(([,l])=>[l+'인원',l+'협력사']),'총인원','위도','경도','확인','공공'];
   const rows=visible().map(b=>[b.name,ZNAME[b.zone]||'',b.region,b.district,b.address,b.gfa,b.gfa?Math.round(b.gfa/PY):'',b.floors_above,b.floors_below,b.completed,b.use_type,b.owner,b.fm?.company,b.fm?.pm,b.fm?.manager,b.fm?.contact,b.fm?.period,
-    ...CATS.flatMap(([k])=>[b.staff?.[k]?.n||0,b.staff?.[k]?.company]),staffTotal(b),b.lat,b.lng,b.verified?'Y':'N']);
+    ...CATS.flatMap(([k])=>[b.staff?.[k]?.n||0,b.staff?.[k]?.company]),staffTotal(b),b.lat,b.lng,b.verified?'Y':'N',b.is_public?'Y':'N']);
   const cell=x=>{x=String(x??'');if(/^[=+\-@]/.test(x))x="'"+x;return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x};
   const csv='\ufeff'+[head,...rows].map(r=>r.map(cell).join(',')).join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`빌딩정보_${ZNAME[zone]}_${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
