@@ -83,7 +83,11 @@ aside{background:var(--paper);border-left:1px solid var(--line);overflow:auto;mi
 h2{font-size:20px;margin:8px 0 2px;letter-spacing:-.02em;line-height:1.3}
 h3{font-size:13px;color:var(--ink2);font-weight:600;margin:20px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .bars{display:grid;gap:6px}
-.barrow{display:grid;grid-template-columns:118px 1fr 36px;gap:8px;align-items:center;font-size:13px}
+.barrow{display:grid;grid-template-columns:150px 1fr 36px;gap:8px;align-items:center;font-size:13px}
+.cos{max-height:380px;overflow:auto;padding-right:4px}
+.cos .barrow{width:100%;border:0;background:none;padding:2px 0;text-align:left;border-radius:6px}
+.cos .barrow:hover{background:var(--bg)}
+.list .sub small{color:var(--ink2);margin-left:1px}
 .barrow .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bar{height:10px;background:var(--bg);border-radius:5px;overflow:hidden}.bar i{display:block;height:100%;background:var(--pin)}
 .bar i.none{background:var(--line)}
@@ -240,7 +244,23 @@ function autoZone(region,district){
   return null;
 }
 const staffTotal=b=>CATS.reduce((s,[k])=>s+(+(b.staff?.[k]?.n)||0),0);
-const hasFM=b=>!!(b.fm&&b.fm.company&&String(b.fm.company).trim());
+/* 관리회사: 시설(fm.company)·보안·미화·기타(staff.*.company)·PM(fm.pm) 을 모두 모아 보여 줌 */
+const ROLE_OF={'보안':'security','미화':'cleaning','안내':'other','PM':'pm','pm':'pm'};
+const ROLE_LBL={facility:'시설',security:'보안',cleaning:'미화',other:'기타',pm:'PM'};
+const ROLE_ORD=['facility','security','cleaning','other','pm'];
+const coKey=s=>String(s||'').replace(/\s|\(주\)|㈜|주식회사/g,'').toLowerCase();
+function splitRole(s){s=String(s||'').trim();const m=s.match(/^(.*?)\s*\(\s*(보안|미화|안내|PM|pm)\s*\)\s*$/);return m?[m[1].trim(),ROLE_OF[m[2]]]:[s,null]}
+function companiesOf(b){
+  const map=new Map();
+  const add=(raw,role)=>{let [nm,r]=splitRole(raw);if(!nm)return;r=r||role;const k=coKey(nm);const o=map.get(k)||{name:nm,roles:[]};if(!o.roles.includes(r))o.roles.push(r);map.set(k,o)};
+  add(b.fm?.company,'facility');add(b.fm?.pm,'pm');
+  for(const [k] of CATS)add(b.staff?.[k]?.company,k);
+  for(const o of map.values())o.roles.sort((a,c)=>ROLE_ORD.indexOf(a)-ROLE_ORD.indexOf(c));
+  return [...map.values()];
+}
+const mgmtCos=b=>companiesOf(b).filter(o=>o.roles.some(r=>r!=='pm'));   // 시설·보안·미화·기타 중 하나라도
+const roleTxt=roles=>roles.map(r=>ROLE_LBL[r]).join('·');
+const hasFM=b=>mgmtCos(b).length>0;
 function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
 
 /* ================= 상태 ================= */
@@ -605,9 +625,12 @@ function renderDash(){
   const p=$('#panel');const vis=visible();
   const zb=buildings.filter(inZone);
   const g=zb.reduce((s,b)=>s+(+b.gfa||0),0),st=zb.reduce((s,b)=>s+staffTotal(b),0),withFM=zb.filter(hasFM).length;
-  const by={};for(const b of zb){const k=hasFM(b)?b.fm.company.trim():'__none';by[k]=(by[k]||0)+1}
-  const rows=Object.entries(by).sort((a,b)=>(a[0]==='__none')-(b[0]==='__none')||b[1]-a[1]).slice(0,9);
-  const mx=Math.max(1,...rows.map(r=>r[1]));
+  const by={};let none=0;
+  for(const b of zb){const cs=mgmtCos(b);if(!cs.length){none++;continue}
+    for(const o of cs){const e=by[coKey(o.name)]||(by[coKey(o.name)]={name:o.name,n:0,roles:new Set()});e.n++;o.roles.forEach(r=>e.roles.add(r))}}
+  const rows=Object.values(by).sort((a,b)=>b.n-a.n||a.name.localeCompare(b.name,'ko')).map(e=>({...e,roles:ROLE_ORD.filter(r=>e.roles.has(r)&&r!=='pm')}));
+  if(none)rows.push({name:'__none',n:none,roles:[]});
+  const mx=Math.max(1,...rows.map(r=>r.n));
   p.innerHTML=`<div class="pad">
     <h2 style="margin-top:0">${esc(ZNAME[zone])}</h2>
     <div class="kpis" style="margin-top:10px">
@@ -617,21 +640,23 @@ function renderDash(){
       <div class="kpi"><b>${zb.length?Math.round(withFM/zb.length*100):0}%</b><span>관리사 입력</span></div>
     </div>
     ${fmBox(zb)}
-    <h3>시설관리회사별 빌딩 수</h3>
-    ${rows.length?`<div class="bars">${rows.map(([k,n])=>`<div class="barrow"><span class="nm" title="${esc(k==='__none'?'미입력':k)}">${k==='__none'?'<span class="flag">미입력</span>':esc(k)}</span><div class="bar"><i class="${k==='__none'?'none':''}" style="width:${n/mx*100}%"></i></div><span class="n">${n}</span></div>`).join('')}</div>`:'<div class="hint">빌딩이 없어요.</div>'}
+    <h3>관리회사별 빌딩 수 <span class="hint">(시설·보안·미화 · ${rows.filter(r=>r.name!=='__none').length}개사)</span></h3>
+    ${rows.length?`<div class="bars cos">${rows.map(r=>`<button type="button" class="barrow" data-co="${esc(r.name==='__none'?'':r.name)}" title="${esc(r.name==='__none'?'미입력':r.name+' ('+roleTxt(r.roles)+')')}"><span class="nm">${r.name==='__none'?'<span class="flag">미입력</span>':esc(r.name)+(r.roles.length?' <small class="hint">'+esc(roleTxt(r.roles))+'</small>':'')}</span><div class="bar"><i class="${r.name==='__none'?'none':''}" style="width:${r.n/mx*100}%"></i></div><span class="n">${r.n}</span></button>`).join('')}</div>
+    <div class="hint" style="margin-top:4px">회사를 누르면 아래 목록이 그 회사 빌딩으로 좁혀져요. 한 빌딩에 시설·보안·미화 회사가 다르면 각 회사에 모두 세요.</div>`:'<div class="hint">빌딩이 없어요.</div>'}
     <h3>빌딩 목록</h3>
     <div class="toolbar"><input id="q" placeholder="빌딩명·주소·관리사 검색" value="${esc(query)}" aria-label="검색">
       ${canEdit()?'<button class="btn pri" id="add">빌딩 추가</button>':''}</div>
     <label class="keep" style="margin-top:8px"><input type="checkbox" id="miss" ${onlyMissing?'checked':''}> 관리사 미입력만</label>
     ${vis.length?`<ul class="list">${vis.map(b=>`<li><button data-id="${esc(b.id)}"><span class="nm">${esc(b.name)}</span>
       <span class="num">${fmtPy(b.gfa)}${staffTotal(b)?'<br><small>'+staffTotal(b)+'명</small>':''}</span>
-      <span class="sub">${hasPos(b)?'':'<span class="flag">위치 없음</span> · '}${esc(b.district||'')}${zone==='all'&&b.zone?' · '+esc(ZNAME[b.zone]||''):''} · ${hasFM(b)?esc(b.fm.company):'<span class="flag">관리사 미입력</span>'}</span></button></li>`).join('')}</ul>`
+      <span class="sub">${hasPos(b)?'':'<span class="flag">위치 없음</span> · '}${esc(b.district||'')}${zone==='all'&&b.zone?' · '+esc(ZNAME[b.zone]||''):''} · ${hasFM(b)?mgmtCos(b).map(o=>esc(o.name)+'<small>('+esc(roleTxt(o.roles))+')</small>').join(', '):'<span class="flag">관리사 미입력</span>'}</span></button></li>`).join('')}</ul>`
       :`<div class="hint" style="padding:16px 0">${zb.length?'조건에 맞는 빌딩이 없어요.':'이 권역에 등록된 빌딩이 없어요.'}</div>`}
   </div>`;
   const qi=$('#q');qi.oninput=()=>{query=qi.value;const pos=qi.selectionStart;drawMarkers();renderDash();const n=$('#q');n.focus();n.setSelectionRange(pos,pos)};
   $('#miss').onchange=e=>{onlyMissing=e.target.checked;drawMarkers();renderDash()};
   if($('#add'))$('#add').onclick=()=>startEdit(null);
   if($('#fmRev'))$('#fmRev').onclick=openFmReview;
+  p.querySelectorAll('.cos [data-co]').forEach(el=>el.onclick=()=>{const c=el.dataset.co;if(c){query=query===c?'':c;onlyMissing=false}else{query='';onlyMissing=!onlyMissing}drawMarkers();renderDash();const l=p.querySelector('.list');if(l)l.scrollIntoView({behavior:'smooth',block:'start'})});
   p.querySelectorAll('.list [data-id]').forEach(b=>b.onclick=()=>openDetail(b.dataset.id,true));
 }
 function openDetail(id,fly){
@@ -664,7 +689,9 @@ async function renderDetail(){
       <dt>용도</dt><dd>${esc(b.use_type||'—')}</dd><dt>규모</dt><dd>${esc(fl||'—')}</dd>
       <dt>준공</dt><dd>${esc(b.completed||'—')}</dd><dt>소유주</dt><dd>${esc(b.owner||'—')}</dd></dl>
     <h3>시설관리</h3>
-    <dl><dt>관리회사</dt><dd>${hasFM(b)?esc(b.fm.company):'<span class="flag">미입력</span>'}</dd>
+    <dl><dt>시설(FM)</dt><dd>${b.fm?.company?esc(b.fm.company):'<span class="flag">미입력</span>'}</dd>
+      ${CATS.filter(([k])=>b.staff?.[k]?.company).map(([k,l])=>`<dt>${l}</dt><dd>${esc(b.staff[k].company)}${b.staff[k].source?' · '+srcLink(b.staff[k].source):''}</dd>`).join('')}
+      ${b.fm?.pm?`<dt>PM</dt><dd>${esc(b.fm.pm)}</dd>`:''}
       <dt>담당자</dt><dd>${esc(b.fm?.manager||'—')}</dd><dt>연락처</dt><dd>${esc(b.fm?.contact||'—')}</dd><dt>계약기간</dt><dd>${esc(b.fm?.period||'—')}</dd>${b.fm?.source?`<dt>출처</dt><dd>${srcLink(b.fm.source)}${b.fm.checked_at?' <span class="hint">· '+esc(b.fm.checked_at)+' 반영</span>':''}</dd>`:''}</dl>
     ${fmSug.filter(x=>x.building_id===b.id).map(x=>sugCard(x,false)).join('')}
     <h3>관리 인력 · 총 ${staffTotal(b)}명</h3>
@@ -716,7 +743,7 @@ function collect(){
   draft.zoneAuto=v('zone')==='auto';draft.zone=draft.zoneAuto?autoZone(draft.region,draft.district):v('zone');
   const gm=num('gfa_m2');draft.gfa=gm;
   draft.fm=Object.assign({},draft.fm,{company:v('fm_company'),manager:v('fm_manager'),contact:v('fm_contact'),period:v('fm_period')});
-  const st={};for(const [k] of CATS){const n=num('s_'+k)||0,c=v('c_'+k);if(n||c)st[k]={n,company:c}}draft.staff=st;
+  const st={};for(const [k] of CATS){const n=num('s_'+k)||0,c=v('c_'+k);if(n||c){const o=Object.assign({},draft.staff[k]||{},{n,company:c});if(o.company!==(draft.staff[k]||{}).company){delete o.source;delete o.checked_at}st[k]=o}}draft.staff=st;
   const m3=draft.model3d;m3.w=num('m3_w');m3.d=num('m3_d');m3.h=num('m3_h');m3.az=+f.elements.m3_az.value;
 }
 function cleanModel(m){
@@ -964,11 +991,12 @@ function fmBox(zb){
   return `<div class="fmbox ${n?'on':''}"><span>관리사 자동 검색 · 검토 대기 <b>${n}</b>건</span><span class="hint">${esc(last)}</span>${n?'<button class="btn" id="fmRev" type="button">검토하기</button>':''}</div>`;
 }
 function sugCard(x,withName){
-  const b=buildings.find(y=>y.id===x.building_id)||{};const cur=hasFM(b)?b.fm.company:'';
+  const b=buildings.find(y=>y.id===x.building_id)||{};const [,rl]=splitRole(x.company);const role=rl||'facility';
+  const cur=role==='facility'?(b.fm?.company||''):role==='pm'?(b.fm?.pm||''):(b.staff?.[role]?.company||'');
   return `<div class="sug" data-sid="${x.id}">
     <span class="t">자동 검색 결과${withName?' · '+esc(b.name||''):''} · ${esc(new Date(x.found_at).toLocaleDateString('ko-KR'))}</span>
     <span class="co">${esc(x.company)} <span class="conf c${esc(x.confidence||'하')}">확실도 ${esc(x.confidence||'하')}</span></span>
-    <span class="hint">현재: ${cur?esc(cur):'미입력'}</span>
+    <span class="hint">반영하면 들어갈 칸: ${esc(role==='facility'?'시설관리회사':role==='pm'?'PM 회사':'관리 인력 · '+ROLE_LBL[role]+' 협력사')} · 현재: ${cur?esc(cur):'미입력'}</span>
     ${x.evidence?`<span class="ev">${esc(x.evidence)}</span>`:''}
     ${x.source_url?`<span class="hint">출처: ${srcLink(x.source_url)}</span>`:''}
     ${canEdit()?`<div class="row"><button class="btn pri" type="button" data-ok="${x.id}">반영</button><button class="btn" type="button" data-no="${x.id}">무시</button></div>`:''}
@@ -989,7 +1017,7 @@ function openFmReview(){
   const draw=()=>{
     const list=fmSug.slice().sort((a,b)=>{const na=buildings.find(x=>x.id===a.building_id)?.name||'',nb=buildings.find(x=>x.id===b.building_id)?.name||'';return na.localeCompare(nb,'ko')});
     const m=modal(`<h2>관리사 자동 검색 · 검토 대기 ${list.length}건</h2>
-      <p class="hint" style="margin:0">출처를 열어 확인한 뒤 <b>반영</b>을 누르면 빌딩의 관리회사가 바뀌고 변경 이력에 남아요. 틀린 결과는 <b>무시</b>하세요.</p>
+      <p class="hint" style="margin:0">출처를 열어 확인한 뒤 <b>반영</b>을 누르면 회사명의 역할 표기에 따라 시설관리회사 또는 보안·미화 협력사 칸에 들어가고 변경 이력에 남아요. 틀린 결과는 <b>무시</b>하세요.</p>
       <div id="sugList">${list.length?list.map(x=>sugCard(x,true)).join(''):'<p class="hint">검토할 결과가 없어요.</p>'}</div>
       <div class="actions"><button class="btn" id="sugX" type="button">닫기</button></div>`);
     m.querySelector('#sugX').onclick=closeModal;
@@ -1143,8 +1171,8 @@ async function loadUsers(m){
 /* ================= CSV ================= */
 function exportCsv(){
   if(!canEdit())return;
-  const head=['빌딩명','권역','시도','시군구','주소','연면적(㎡)','연면적(평)','지상층','지하층','준공','용도','소유주','관리회사','담당자','연락처','계약기간',...CATS.flatMap(([,l])=>[l+'인원',l+'협력사']),'총인원','위도','경도','확인'];
-  const rows=visible().map(b=>[b.name,ZNAME[b.zone]||'',b.region,b.district,b.address,b.gfa,b.gfa?Math.round(b.gfa/PY):'',b.floors_above,b.floors_below,b.completed,b.use_type,b.owner,b.fm?.company,b.fm?.manager,b.fm?.contact,b.fm?.period,
+  const head=['빌딩명','권역','시도','시군구','주소','연면적(㎡)','연면적(평)','지상층','지하층','준공','용도','소유주','관리회사(시설)','PM','담당자','연락처','계약기간',...CATS.flatMap(([,l])=>[l+'인원',l+'협력사']),'총인원','위도','경도','확인'];
+  const rows=visible().map(b=>[b.name,ZNAME[b.zone]||'',b.region,b.district,b.address,b.gfa,b.gfa?Math.round(b.gfa/PY):'',b.floors_above,b.floors_below,b.completed,b.use_type,b.owner,b.fm?.company,b.fm?.pm,b.fm?.manager,b.fm?.contact,b.fm?.period,
     ...CATS.flatMap(([k])=>[b.staff?.[k]?.n||0,b.staff?.[k]?.company]),staffTotal(b),b.lat,b.lng,b.verified?'Y':'N']);
   const cell=x=>{x=String(x??'');if(/^[=+\-@]/.test(x))x="'"+x;return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x};
   const csv='\ufeff'+[head,...rows].map(r=>r.map(cell).join(',')).join('\n');
