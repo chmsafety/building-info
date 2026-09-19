@@ -1302,8 +1302,8 @@ async function importCall(body){
 }
 let impStop=false;
 function openImport(){
-  const m=modal(`<h2>건축물대장에서 오피스 빌딩 가져오기</h2>
-    <p class="hint" style="margin:0">국토교통부 건축HUB 건축물대장(표제부)에서 주용도가 <b>업무시설</b>인 건물을 필지 단위로 묶어, 연면적이 기준 이상이면 빌딩 목록에 등록해요. 이미 있는 빌딩(같은 주소·70m 이내)은 건너뛰어요. 좌표는 카카오 주소 검색으로 찾아요.</p>
+  const m=modal(`<h2>건축물대장에서 빌딩 가져오기</h2>
+    <p class="hint" style="margin:0">국토교통부 건축HUB 건축물대장(표제부)에서 주용도가 <b>업무시설</b> 또는 <b>방송통신시설</b>(방송국·언론사 사옥 등)인 건물을 필지 단위로 묶어, 연면적이 기준 이상이면 빌딩 목록에 등록해요. 이미 있는 빌딩(같은 주소·70m 이내)은 건너뛰어요. 좌표는 카카오 주소 검색으로 찾아요.</p>
     <div class="g3" style="grid-template-columns:auto auto auto 1fr;gap:10px;align-items:end;margin-top:12px">
       <label class="keep" style="margin:0"><input type="checkbox" id="im11" checked> 서울</label>
       <label class="keep" style="margin:0"><input type="checkbox" id="im41" checked> 경기</label>
@@ -1346,6 +1346,7 @@ function openImport(){
             catch(e){if(++tries>=3||/한도|LIMITED|SERVICE_KEY|서비스키|초과|등록되지|관리자/.test(e.message))throw e;log(`  재시도 (${e.message})`);await new Promise(s=>setTimeout(s,3000))}}
           pIns+=r.inserted;pFound+=r.found;pScan+=r.scanned;
           tot.ins+=r.inserted;tot.found+=r.found;tot.dup+=r.dup;tot.nogeo+=r.noGeo;tot.calls+=r.calls;
+          if(r.added&&r.added.length)log(`  + ${r.added.join(', ')}`);
           if(r.geoErr&&!tot.geoWarn){tot.geoWarn=1;log(`  ⚠ 카카오 주소 검색 오류 ${r.geoErr} — 카카오 개발자 사이트에서 '카카오맵' 사용 설정을 켜 주세요. (좌표 없이 등록돼요)`)}
           k++;m.querySelector('#imBar').style.width=(k/steps*100).toFixed(1)+'%';
           m.querySelector('#imSum').textContent=`진행 ${k}/${steps} · 새로 등록 ${tot.ins} · 이미 있음 ${tot.dup} · 좌표 없음 ${tot.nogeo} · API 호출 ${tot.calls.toLocaleString()}`;
