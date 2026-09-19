@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.supabase.co; connect-src https://*.supabase.co wss://*.supabase.co https://tiles.openfreemap.org https://tile.openstreetmap.org; worker-src 'self' blob:; manifest-src 'self'; child-src blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>Building · 빌딩정보 시스템</title>
+<title>Building · CHM 빌딩정보시스템</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1E8CF5">
 <link rel="icon" type="image/png" href="favicon.png">
@@ -47,6 +47,8 @@ label{font-size:12px;color:var(--ink2);font-weight:500}
 .app{display:grid;grid-template-rows:auto auto 1fr;height:100vh}
 header{display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--paper);border-bottom:1px solid var(--line)}
 header h1{font-size:16px;margin:0;font-weight:700;white-space:nowrap}
+.brand{display:flex;align-items:center;gap:8px}.brand img{height:26px;width:auto;display:block}
+.login-card .brand img{height:34px}
 .who{margin-left:auto;position:relative}
 .who>button{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--paper);border-radius:99px;padding:5px 10px 5px 12px}
 .role{font-size:11px;font-weight:600;padding:1px 8px;border-radius:99px;background:var(--chip);color:var(--ink2)}
@@ -66,6 +68,10 @@ main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 .maplibregl-ctrl-attrib{font-size:11px}
 .tmp-pin{width:28px;height:28px;border:3px dashed var(--hi);border-radius:50%}
 .map3d{position:absolute;left:10px;top:10px;z-index:5;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.maplegend{position:absolute;left:10px;bottom:28px;z-index:5;display:flex;gap:10px;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.maplegend span{display:flex;align-items:center;gap:5px}
+.lg{width:12px;height:12px;border-radius:3px;display:inline-block;border:2px solid #0E5E66}
+.lg.on{background:#0E8A94}.lg.off{background:#fff;border-color:#E0662A}
 .v3{position:absolute;inset:0;z-index:20;background:#1d2126}
 .v3 iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .v3bar{position:absolute;left:10px;top:10px;right:60px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;z-index:2;pointer-events:none}
@@ -174,7 +180,7 @@ td select{width:auto;padding:4px 6px}
 
 <div id="login" class="hidden">
   <form class="login-card" id="loginForm" onsubmit="return false" autocomplete="on">
-    <h1>빌딩정보 시스템</h1>
+    <h1 class="brand"><img src="chm-logo.png" alt="CHM"><span>빌딩정보시스템</span></h1>
     <div class="hint">계정이 없으면 관리자에게 요청하세요.</div>
     <div class="f"><label for="lid">아이디</label><input id="lid" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
     <div class="f"><label for="lpw">비밀번호</label><input id="lpw" name="password" type="password" autocomplete="current-password" required></div>
@@ -186,7 +192,7 @@ td select{width:auto;padding:4px 6px}
 
 <div id="app" class="app hidden">
   <header>
-    <h1>빌딩정보 시스템</h1>
+    <h1 class="brand"><img src="chm-logo.png" alt="CHM"><span>빌딩정보시스템</span></h1>
     <div class="who">
       <button id="whoBtn" aria-haspopup="menu" aria-expanded="false"><span class="nmtxt" id="whoName"></span><span class="role" id="whoRole"></span> ▾</button>
       <div class="menu hidden" id="whoMenu" role="menu">
@@ -203,6 +209,7 @@ td select{width:auto;padding:4px 6px}
     <div style="position:relative;min-height:0">
       <div id="map" aria-label="지도"></div>
       <button class="btn map3d" id="v3open" type="button">실사 3D</button>
+      <div class="maplegend" aria-label="범례"><span><i class="lg on"></i>관리사 입력</span><span><i class="lg off"></i>미입력</span></div>
       <div class="banner hidden" id="banner" style="z-index:10">지도에서 빌딩 위치를 누르세요 · Esc 로 취소</div>
       <div class="v3 hidden" id="v3wrap"><iframe id="v3" title="실사 3D 지도"></iframe>
         <div class="v3bar"><button class="btn" id="v3close" type="button">← 지도로 돌아가기</button><span id="v3msg"></span></div></div>
@@ -453,7 +460,7 @@ function drawMarkers(){
     if(!hasPos(b))continue;
     const sel=b.id===selId,fm=hasFM(b);
     features.push({type:'Feature',geometry:{type:'Point',coordinates:[b.lng,b.lat]},
-      properties:{id:b.id,name:b.name,r:rad(b.gfa),fill:sel?hi:(fm?pin:'#ffffff'),stroke:sel?'#1B2A2F':pin,sw:sel?3:2,op:sel?1:(fm?.8:.9)}});
+      properties:{id:b.id,name:b.name,r:rad(b.gfa),fill:sel?hi:(fm?pin:'#ffffff'),stroke:sel?'#1B2A2F':(fm?pin:'#E0662A'),sw:sel?3:2,op:sel?1:(fm?.8:.9)}});
   }
   map.getSource('bld').setData({type:'FeatureCollection',features});
   syncBoxes();drawTmp();
@@ -525,7 +532,7 @@ function syncBoxes(){
   const bb=map.getBounds(),pad=.004,inView=b=>b.lng>bb.getWest()-pad&&b.lng<bb.getEast()+pad&&b.lat>bb.getSouth()-pad&&b.lat<bb.getNorth()+pad;
   for(const b of visible()){
     if(!hasPos(b)||!inView(b))continue;want.add(b.id);
-    const m=box(b);const key=[m.w,m.d,m.h,m.az,m.floors,b.lat,b.lng,b.id===selId,...FACES.map(([k])=>faceState(m,k))].join('|');
+    const m=box(b);const key=[m.w,m.d,m.h,m.az,m.floors,b.lat,b.lng,b.id===selId,hasFM(b),...FACES.map(([k])=>faceState(m,k))].join('|');
     const o=boxes.get(b.id);if(o&&o.key===key)continue;
     if(o)disposeScene(o.scene);
     boxes.set(b.id,buildBox(b,m,key));
@@ -535,23 +542,26 @@ function syncBoxes(){
 }
 function disposeScene(sc){sc.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)[].concat(o.material).forEach(mt=>mt.dispose())})}
 function buildBox(b,m,key){
+  const fm=hasFM(b);
   const geo=new THREE.BoxGeometry(m.w,m.h,m.d);const uv=geo.attributes.uv;
   // 면 순서: +x 우측면, -x 좌측면, +y 옥상, -y 바닥, +z 정면, -z 후면
   const order=['right','left',null,null,'front','back'];
   const mats=order.map((k,gi)=>{
-    if(!k)return new THREE.MeshBasicMaterial({color:gi===2?0x98A19F:0x5E6765});
+    if(!k)return new THREE.MeshBasicMaterial({color:gi===2?(fm?0x0E8A94:0xFFFFFF):0x5E6765});   // 옥상: 관리사 입력=청록, 미입력=흰색
     const p=faceState(m,k);
     if(p)return new THREE.MeshBasicMaterial({map:facadeTex.get(p)});
     const width=(k==='front'||k==='back')?m.w:m.d,bays=Math.max(1,Math.round(width/3.2));
     for(let v=gi*4;v<gi*4+4;v++)uv.setXY(v,uv.getX(v)*bays,uv.getY(v)*m.floors);
-    return new THREE.MeshBasicMaterial({map:getGeneric()});
+    return new THREE.MeshBasicMaterial({map:getGeneric(),color:fm?0x86CFD5:0xFFFFFF});   // 입력된 빌딩은 외벽도 청록빛
   });
   uv.needsUpdate=true;
   const sel=b.id===selId;
   const mesh=new THREE.Mesh(geo,mats);mesh.position.y=m.h/2;
-  const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:sel?0xE3A008:0x1B2A2F,transparent:true,opacity:sel?1:.35}));
+  const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:sel?0xE3A008:(fm?0x0E5E66:0xE0662A),transparent:true,opacity:sel?1:(fm?.6:.9)}));
   edges.position.y=m.h/2;
-  const grp=new THREE.Group();grp.add(mesh);grp.add(edges);grp.rotation.y=-(m.az-180)*Math.PI/180;
+  const plate=new THREE.Mesh(new THREE.PlaneGeometry(m.w+6,m.d+6),new THREE.MeshBasicMaterial({color:sel?0xE3A008:(fm?0x0E8A94:0xE0662A),transparent:true,opacity:.55,side:THREE.DoubleSide,depthWrite:false}));
+  plate.rotation.x=-Math.PI/2;plate.position.y=.3;   // 바닥 테두리 색: 입력=청록, 미입력=주황
+  const grp=new THREE.Group();grp.add(plate);grp.add(mesh);grp.add(edges);grp.rotation.y=-(m.az-180)*Math.PI/180;
   const scene=new THREE.Scene();scene.add(grp);
   const mc=maplibregl.MercatorCoordinate.fromLngLat([b.lng,b.lat],0);const s=mc.meterInMercatorCoordinateUnits();
   const matrix=new THREE.Matrix4().makeTranslation(mc.x,mc.y,mc.z).scale(new THREE.Vector3(s,-s,s)).multiply(rotX);
