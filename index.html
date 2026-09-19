@@ -1,0 +1,1005 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.supabase.co; connect-src https://*.supabase.co wss://*.supabase.co https://tiles.openfreemap.org https://tile.openstreetmap.org; worker-src blob:; child-src blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>빌딩정보 시스템</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V" crossorigin="anonymous">
+<style>
+:root{--bg:#EEF1F0;--paper:#fff;--ink:#1B2A2F;--ink2:#51636A;--line:#D5DDDD;--pin:#0E5E66;--hi:#E3A008;--warn:#B4461B;--chip:#E4ECEB;--ok:#1F7A4D}
+@media (prefers-color-scheme:dark){:root{--bg:#121A1C;--paper:#19242A;--ink:#E6EDEC;--ink2:#A9BCC0;--line:#2C3B41;--pin:#6FD3D6;--hi:#F2B632;--warn:#F08A5D;--chip:#24343A;--ok:#6FD39A}}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-size:14px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}
+:focus-visible{outline:2px solid var(--hi);outline-offset:2px}
+.hidden{display:none!important}
+.btn{padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--paper);font-weight:500}
+.btn.pri{background:var(--pin);border-color:var(--pin);color:var(--paper)}
+.btn.warn{color:var(--warn);border-color:var(--warn)}
+.btn:disabled{opacity:.45;cursor:default}
+.err{color:var(--warn);font-size:13px;min-height:1em}
+.hint{font-size:12px;color:var(--ink2)}
+input,select,textarea{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);width:100%}
+label{font-size:12px;color:var(--ink2);font-weight:500}
+
+/* login */
+#login{min-height:100%;display:grid;place-items:center;padding:24px}
+.login-card{width:min(380px,100%);background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:28px 26px}
+.login-card h1{font-size:20px;margin:0 0 4px;letter-spacing:-.02em}
+.login-card .f{display:grid;gap:4px;margin-top:14px}
+.login-card .btn{width:100%;margin-top:18px;padding:11px}
+.keep{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13px;color:var(--ink)}.keep input{width:auto}
+
+/* app */
+.app{display:grid;grid-template-rows:auto auto 1fr;height:100vh}
+header{display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--paper);border-bottom:1px solid var(--line)}
+header h1{font-size:16px;margin:0;font-weight:700;white-space:nowrap}
+.who{margin-left:auto;position:relative}
+.who>button{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--paper);border-radius:99px;padding:5px 10px 5px 12px}
+.role{font-size:11px;font-weight:600;padding:1px 8px;border-radius:99px;background:var(--chip);color:var(--ink2)}
+.role.admin{background:var(--ink);color:var(--paper)}.role.editor{background:var(--pin);color:var(--paper)}
+.menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--paper);border:1px solid var(--line);border-radius:10px;min-width:170px;padding:6px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:6px}
+.menu button:hover{background:var(--bg)}
+.zones{display:flex;gap:6px;padding:8px 16px;background:var(--paper);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:thin}
+.zone{flex:none;padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--paper);font-size:13px;white-space:nowrap}
+.zone[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.zone small{opacity:.7;margin-left:4px}
+main{display:grid;grid-template-columns:1fr 440px;min-height:0}
+#map{min-height:0;height:100%;background:#dde6e7}
+#map .maplibregl-canvas{outline:none}
+.maplibregl-ctrl-attrib{font-size:11px}
+.tmp-pin{width:28px;height:28px;border:3px dashed var(--hi);border-radius:50%}
+.map3d{position:absolute;left:10px;top:10px;z-index:5;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.v3{position:absolute;inset:0;z-index:20;background:#1d2126}
+.v3 iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.v3bar{position:absolute;left:10px;top:10px;right:60px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;z-index:2;pointer-events:none}
+.v3bar>*{pointer-events:auto}
+.v3bar span{background:var(--ink);color:var(--paper);padding:7px 12px;border-radius:8px;font-size:13px}
+.v3bar span:empty{display:none}
+.v3bar .link{background:var(--hi);color:#1B2A2F;font-weight:600}
+.faces{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.face{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink2)}
+.face .thumb{aspect-ratio:3/4;border:1px dashed var(--line);border-radius:8px;background:var(--bg) center/cover no-repeat;display:grid;place-items:center;text-align:center;font-size:11px;padding:4px;cursor:pointer;color:var(--ink2)}
+.face.has .thumb{border-style:solid;color:transparent}
+.face .btn{padding:3px 6px;font-size:11px}
+.fx{display:grid;grid-template-columns:1fr 150px;gap:12px;margin-top:10px}
+.fxc{background:#2A2F35;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:8px;touch-action:none;min-height:200px}
+.fxc canvas{max-width:100%;cursor:crosshair;touch-action:none}
+.fxp canvas{width:100%;border-radius:6px;background:var(--bg);margin-top:4px}
+.banner{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:8px 14px;border-radius:8px;font-size:13px;z-index:1000}
+aside{background:var(--paper);border-left:1px solid var(--line);overflow:auto;min-height:0}
+.pad{padding:16px 18px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.kpi{background:var(--bg);border-radius:10px;padding:10px 10px 8px}
+.kpi b{display:block;font-size:19px;font-variant-numeric:tabular-nums;line-height:1.2}
+.kpi span{font-size:12px;color:var(--ink2)}
+h2{font-size:20px;margin:8px 0 2px;letter-spacing:-.02em;line-height:1.3}
+h3{font-size:13px;color:var(--ink2);font-weight:600;margin:20px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.bars{display:grid;gap:6px}
+.barrow{display:grid;grid-template-columns:118px 1fr 36px;gap:8px;align-items:center;font-size:13px}
+.barrow .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{height:10px;background:var(--bg);border-radius:5px;overflow:hidden}.bar i{display:block;height:100%;background:var(--pin)}
+.bar i.none{background:var(--line)}
+.barrow .n{text-align:right;font-variant-numeric:tabular-nums}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.toolbar input{flex:1;min-width:140px}
+.list{list-style:none;margin:10px -18px 0;padding:0}
+.list button{width:100%;text-align:left;display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 18px;border:0;border-top:1px solid var(--line);background:none}
+.list button:hover{background:var(--bg)}
+.list .nm{font-weight:600}.list .sub{font-size:12px;color:var(--ink2)}
+.list .num{grid-row:1/3;grid-column:2;text-align:right;font-size:13px;align-self:center;font-variant-numeric:tabular-nums}
+.flag{color:var(--warn);font-size:11px;font-weight:600}
+.back{border:0;background:none;color:var(--ink2);padding:0;margin-bottom:8px}
+.photo{aspect-ratio:16/10;background:var(--bg);border-radius:10px;overflow:hidden;display:grid;place-items:center;color:var(--ink2);font-size:13px}
+.photo img{width:100%;height:100%;object-fit:cover}
+.thumbs{display:flex;gap:6px;margin-top:6px;overflow-x:auto}
+.thumbs button{padding:0;border:2px solid transparent;border-radius:6px;overflow:hidden;width:58px;height:40px;flex:none;background:var(--bg)}
+.thumbs button[aria-current="true"]{border-color:var(--hi)}.thumbs img{width:100%;height:100%;object-fit:cover}
+dl{display:grid;grid-template-columns:92px 1fr;gap:6px 12px;margin:0}dt{color:var(--ink2)}dd{margin:0}
+.big{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.srow{display:grid;grid-template-columns:40px 1fr 44px;gap:10px;align-items:center;font-size:13px;margin-bottom:6px}
+.srow .n{text-align:right;font-weight:600}.scomp{grid-column:2/4;font-size:12px;color:var(--ink2);margin-top:-4px}
+.note{font-size:12px;color:var(--ink2);background:var(--bg);border-radius:8px;padding:8px 10px;margin-top:12px;white-space:pre-wrap}
+.actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+.hist{list-style:none;margin:0;padding:0;font-size:13px}.hist li{padding:6px 0;border-bottom:1px dashed var(--line)}.hist small{color:var(--ink2)}
+form .f{display:grid;gap:4px;margin-bottom:10px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 10px}
+.stf{display:grid;grid-template-columns:44px 72px 1fr;gap:6px 8px;align-items:center;margin-bottom:6px}
+.ph-edit{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.ph-edit div{position:relative;width:74px;height:52px;border-radius:6px;overflow:hidden;background:var(--bg)}
+.ph-edit img{width:100%;height:100%;object-fit:cover}
+.ph-edit button{position:absolute;right:2px;top:2px;border:0;border-radius:4px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:1px 5px}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(10,20,24,.45);display:grid;place-items:center;z-index:3000;padding:16px}
+.modal>div{background:var(--paper);border-radius:14px;width:min(760px,100%);max-height:90vh;overflow:auto;padding:20px 22px}
+.modal h2{margin-top:0}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--ink2);font-weight:600;font-size:12px}
+td select{width:auto;padding:4px 6px}
+.tbl{overflow-x:auto}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;z-index:4000;font-size:13px}
+
+@media (max-width:860px){
+  .app{height:auto;min-height:100vh}
+  main{grid-template-columns:1fr}
+  #map{height:56vh;min-height:340px}
+  aside{border-left:0;border-top:1px solid var(--line)}
+  header h1{font-size:15px}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .who .nmtxt{display:none}
+  .fx{grid-template-columns:1fr}.fxp{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="setup" class="hidden" style="padding:32px;max-width:640px">
+  <h1>설정이 필요해요</h1>
+  <p>index.html 안의 <code>CONFIG</code> 에 Supabase 프로젝트 주소와 anon 키를 넣어 주세요. 자세한 순서는 함께 받은 <b>설치가이드.md</b> 에 있어요.</p>
+</div>
+
+<div id="login" class="hidden">
+  <form class="login-card" id="loginForm" onsubmit="return false" autocomplete="on">
+    <h1>빌딩정보 시스템</h1>
+    <div class="hint">계정이 없으면 관리자에게 요청하세요.</div>
+    <div class="f"><label for="lid">아이디</label><input id="lid" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+    <div class="f"><label for="lpw">비밀번호</label><input id="lpw" name="password" type="password" autocomplete="current-password" required></div>
+    <label class="keep"><input type="checkbox" id="lkeep"> 이 기기에서 로그인 유지</label>
+    <button class="btn pri" id="lbtn" type="submit">로그인</button>
+    <div class="err" id="lerr" role="alert"></div>
+  </form>
+</div>
+
+<div id="app" class="app hidden">
+  <header>
+    <h1>빌딩정보 시스템</h1>
+    <div class="who">
+      <button id="whoBtn" aria-haspopup="menu" aria-expanded="false"><span class="nmtxt" id="whoName"></span><span class="role" id="whoRole"></span> ▾</button>
+      <div class="menu hidden" id="whoMenu" role="menu">
+        <button role="menuitem" id="mPw">비밀번호 변경</button>
+        <button role="menuitem" id="mAdmin" class="hidden">계정 관리</button>
+        <button role="menuitem" id="mCsv">CSV 내보내기</button>
+        <button role="menuitem" id="mOut">로그아웃</button>
+      </div>
+    </div>
+  </header>
+  <nav class="zones" id="zones" aria-label="권역"></nav>
+  <main>
+    <div style="position:relative;min-height:0">
+      <div id="map" aria-label="지도"></div>
+      <button class="btn map3d" id="v3open" type="button">실사 3D</button>
+      <div class="banner hidden" id="banner" style="z-index:10">지도에서 빌딩 위치를 누르세요 · Esc 로 취소</div>
+      <div class="v3 hidden" id="v3wrap"><iframe id="v3" title="실사 3D 지도"></iframe>
+        <div class="v3bar"><button class="btn" id="v3close" type="button">← 지도로 돌아가기</button><span id="v3msg"></span></div></div>
+    </div>
+    <aside id="panel"></aside>
+  </main>
+</div>
+
+<div id="modalRoot"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js" integrity="sha384-RRHfJ6w1mTlKUBMYT/hvnRiOzEB/vyRV3DrQOseb6oYfvaZSfdd0byS4bHps0k2R" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script>
+<script>
+'use strict';
+/* ================= 설정 ================= */
+const CONFIG = {
+  SUPABASE_URL: 'https://dbymktwxokbvfshlztrg.supabase.co',
+  SUPABASE_ANON_KEY: 'sb_publishable_RHDgmlGV-m946etnPHfXaw_vy2u8uCp',   // 공개용(publishable) 키 — 공개돼도 안전
+  LOGIN_DOMAIN: 'bldg.local',                         // admin-users 함수의 LOGIN_DOMAIN 과 같아야 함
+  IDLE_MINUTES: 30                                    // 이 시간 동안 조작이 없으면 자동 로그아웃
+};
+
+/* ================= 공통 ================= */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const PY=3.305785;
+const n0=v=>Math.round(+v||0).toLocaleString('ko-KR');
+const fmtPy=v=>v?n0(v/PY)+'평':'—';
+const fmtM2=v=>v?n0(v)+'㎡':'—';
+const CATS=[['facility','시설'],['security','보안'],['cleaning','미화'],['other','기타']];
+const ZONES=[
+  {id:'all',name:'전체'},{id:'CBD',name:'도심(CBD)'},{id:'GBD',name:'강남(GBD)'},{id:'YBD',name:'여의도(YBD)'},
+  {id:'MAGOK',name:'마곡·강서'},{id:'SEOUL_ETC',name:'서울 기타'},{id:'BUNDANG',name:'판교·분당'},
+  {id:'GG_ETC',name:'경기 기타'},{id:'INCHEON',name:'인천·송도'}];
+const ZNAME=Object.fromEntries(ZONES.map(z=>[z.id,z.name]));
+function autoZone(region,district){
+  district=(district||'').replace(/\s/g,'');
+  if(region==='서울'){
+    if(['중구','종로구'].includes(district))return 'CBD';
+    if(['강남구','서초구','송파구'].includes(district))return 'GBD';
+    if(['영등포구','마포구'].includes(district))return 'YBD';
+    if(district==='강서구')return 'MAGOK';
+    return 'SEOUL_ETC';
+  }
+  if(region==='경기')return district.startsWith('성남시')?'BUNDANG':'GG_ETC';
+  if(region==='인천')return 'INCHEON';
+  return null;
+}
+const staffTotal=b=>CATS.reduce((s,[k])=>s+(+(b.staff?.[k]?.n)||0),0);
+const hasFM=b=>!!(b.fm&&b.fm.company&&String(b.fm.company).trim());
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+
+/* ================= 상태 ================= */
+let sb=null, me=null, buildings=[], names={}, zone='all', query='', onlyMissing=false;
+let mode='dash', selId=null, draft=null, placing=false, photoIdx=0, delArm=false;
+const signed=new Map(); // 사진 경로 → {url, exp}
+const canEdit=()=>me&&['admin','editor'].includes(me.role);
+const isAdmin=()=>me&&me.role==='admin';
+
+/* ================= 시작 ================= */
+function show(id){for(const x of ['setup','login','app'])$('#'+x).classList.toggle('hidden',x!==id)}
+if(!window.supabase||CONFIG.SUPABASE_URL.includes('YOUR-')){show('setup');}
+else{
+  // "로그인 유지"를 선택한 경우만 localStorage, 아니면 탭을 닫으면 사라지는 sessionStorage
+  const store={
+    getItem:k=>(localStorage.getItem('bldg_keep')==='1'?localStorage:sessionStorage).getItem(k),
+    setItem:(k,v)=>(localStorage.getItem('bldg_keep')==='1'?localStorage:sessionStorage).setItem(k,v),
+    removeItem:k=>{localStorage.removeItem(k);sessionStorage.removeItem(k)}
+  };
+  sb=window.supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY,{auth:{storage:store,persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+  boot();
+}
+async function boot(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session&&await loadMe(session.user.id))enterApp();
+  else{await sb.auth.signOut().catch(()=>{});show('login');$('#lid').focus();}
+}
+
+/* ================= 로그인 ================= */
+let fails=0,lockUntil=0;
+$('#loginForm').addEventListener('submit',async()=>{
+  const err=$('#lerr');err.textContent='';
+  if(Date.now()<lockUntil){err.textContent='로그인 시도가 많아요. 잠시 뒤 다시 시도하세요.';return}
+  const id=$('#lid').value.trim().toLowerCase(),pw=$('#lpw').value;
+  if(!id||!pw){err.textContent='아이디와 비밀번호를 입력하세요.';return}
+  localStorage.setItem('bldg_keep',$('#lkeep').checked?'1':'0');
+  $('#lbtn').disabled=true;
+  const {data,error}=await sb.auth.signInWithPassword({email:id+'@'+CONFIG.LOGIN_DOMAIN,password:pw});
+  $('#lbtn').disabled=false;
+  if(error){fails++;if(fails>=5){lockUntil=Date.now()+60000;fails=0}
+    err.textContent=/invalid/i.test(error.message)?'아이디 또는 비밀번호가 맞지 않아요.':'로그인하지 못했어요. 잠시 뒤 다시 시도하세요.';return}
+  fails=0;$('#lpw').value='';
+  if(!await loadMe(data.user.id)){await sb.auth.signOut();err.textContent='사용이 중지되었거나 등록되지 않은 계정이에요. 관리자에게 문의하세요.';return}
+  sb.rpc('record_login').then(()=>{},()=>{});
+  enterApp();
+});
+async function loadMe(uid){
+  const {data,error}=await sb.from('profiles').select('id,login_id,name,role,active,must_change_pw').eq('id',uid).maybeSingle();
+  if(error||!data||!data.active)return false;
+  me=data;return true;
+}
+async function logout(msg){
+  await sb.auth.signOut().catch(()=>{});
+  me=null;buildings=[];signed.clear();close3D();
+  show('login');$('#lerr').textContent=msg||'';$('#lid').focus();
+}
+sb&&sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT'&&me){me=null;show('login')}});
+
+/* 자동 로그아웃 */
+let lastAct=Date.now();
+for(const ev of ['pointerdown','keydown','wheel','touchstart'])addEventListener(ev,()=>{lastAct=Date.now()},{passive:true});
+setInterval(()=>{if(me&&Date.now()-lastAct>CONFIG.IDLE_MINUTES*60000)logout(CONFIG.IDLE_MINUTES+'분 동안 사용하지 않아 로그아웃했어요.')},30000);
+
+/* ================= 앱 진입 ================= */
+let map=null,mapReady=false,mapInit=false,tmpMarker=null;
+async function enterApp(){
+  show('app');
+  $('#whoName').textContent=me.name;
+  const r=$('#whoRole');r.textContent={admin:'관리자',editor:'편집자',viewer:'조회자'}[me.role];r.className='role '+me.role;
+  $('#mAdmin').classList.toggle('hidden',!isAdmin());
+  $('#mCsv').classList.toggle('hidden',!canEdit());
+  if(!mapInit){mapInit=true;initMap()}
+  setTimeout(()=>map&&map.resize(),50);
+  await loadAll();
+  if(me.must_change_pw)openPwModal(true);
+}
+async function loadAll(){
+  const [{data:bs,error},{data:ps}]=await Promise.all([
+    sb.from('buildings').select('*').order('gfa',{ascending:false,nullsFirst:false}),
+    sb.from('profiles').select('id,name')]);
+  if(error){toast('자료를 불러오지 못했어요: '+error.message);return}
+  buildings=bs||[];names=Object.fromEntries((ps||[]).map(p=>[p.id,p.name]));
+  for(const b of buildings)if(!b.zone)b.zone=autoZone(b.region,b.district);
+  renderZones();drawMarkers();renderPanel();
+  firstFit();
+  loadFacadesInView();if(v3open&&!v3link)send3D(null);
+}
+addEventListener('focus',()=>{if(me&&mode!=='edit')loadAll()});
+
+/* ================= 메뉴 ================= */
+$('#whoBtn').onclick=e=>{e.stopPropagation();const m=$('#whoMenu');m.classList.toggle('hidden');$('#whoBtn').setAttribute('aria-expanded',String(!m.classList.contains('hidden')))};
+document.addEventListener('click',()=>$('#whoMenu').classList.add('hidden'));
+$('#mOut').onclick=()=>logout();
+$('#mPw').onclick=()=>openPwModal(false);
+$('#mAdmin').onclick=()=>openAdmin();
+$('#mCsv').onclick=exportCsv;
+
+/* ================= 권역 탭 ================= */
+function inZone(b){return zone==='all'||b.zone===zone}
+function renderZones(){
+  const cnt={};for(const b of buildings)cnt[b.zone]=(cnt[b.zone]||0)+1;
+  $('#zones').innerHTML=ZONES.map(z=>{const n=z.id==='all'?buildings.length:(cnt[z.id]||0);
+    return `<button class="zone" data-z="${z.id}" aria-pressed="${z.id===zone}">${esc(z.name)}<small>${n}</small></button>`}).join('');
+  $('#zones').querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{zone=b.dataset.z;mode='dash';selId=null;renderZones();drawMarkers();renderPanel();fitZone()});
+}
+
+/* ================= 지도 (MapLibre, 관리 빌딩만 입체) ================= */
+const STYLE_URL='https://tiles.openfreemap.org/styles/liberty';
+const GLYPHS='https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
+const BOX_MINZOOM=15;                 // 이 배율부터 빌딩을 입체로, 그 아래는 원으로
+async function loadStyle(){
+  try{
+    const ac=new AbortController();const t=setTimeout(()=>ac.abort(),7000);
+    const r=await fetch(STYLE_URL,{signal:ac.signal});clearTimeout(t);if(!r.ok)throw new Error('style');
+    const st=await r.json();
+    for(const l of st.layers){
+      if(l.type==='symbol'&&l.layout&&l.layout['text-field'])l.layout['text-field']=['coalesce',['get','name:ko'],['get','name']];
+      if(l.type==='fill-extrusion'){l.layout=Object.assign({},l.layout,{visibility:'none'})}   // 다른 건물은 평면으로
+    }
+    return st;
+  }catch(_){
+    return {version:8,glyphs:GLYPHS,
+      sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19,attribution:'&copy; OpenStreetMap contributors'}},
+      layers:[{id:'bg',type:'background',paint:{'background-color':'#dde6e7'}},{id:'osm',type:'raster',source:'osm'}]};
+  }
+}
+async function initMap(){
+  const style=await loadStyle();
+  map=new maplibregl.Map({container:'map',style,center:[126.99,37.55],zoom:11,pitch:45,maxPitch:70,minZoom:8,maxZoom:19});
+  map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
+  map.on('load',()=>{
+    map.addSource('bld',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    if(THREE_OK)map.addLayer(box3d);
+    map.addLayer({id:'bld-circle',type:'circle',source:'bld',maxzoom:BOX_MINZOOM,
+      paint:{'circle-radius':['get','r'],'circle-color':['get','fill'],'circle-opacity':['get','op'],'circle-stroke-color':['get','stroke'],'circle-stroke-width':['get','sw']}});
+    map.addLayer({id:'bld-label',type:'symbol',source:'bld',minzoom:14,
+      layout:{'text-field':['get','name'],'text-font':['Noto Sans Regular'],'text-size':13,'text-anchor':'bottom','text-offset':[0,-1.1]},
+      paint:{'text-color':'#1B2A2F','text-halo-color':'#ffffff','text-halo-width':2}});
+    mapReady=true;drawMarkers();firstFit();loadFacadesInView();
+  });
+  map.on('click',e=>{
+    if(placing&&draft){
+      draft.lat=+e.lngLat.lat.toFixed(6);draft.lng=+e.lngLat.lng.toFixed(6);
+      setPlacing(false);renderEdit();drawTmp();return;
+    }
+    if(!mapReady)return;
+    const f=map.queryRenderedFeatures(e.point,{layers:['bld-circle','bld-label'].filter(id=>map.getLayer(id))})[0];
+    if(f)return openDetail(f.properties.id);
+    const hit=hitBox(e.lngLat);if(hit)openDetail(hit.id);
+  });
+  for(const id of ['bld-circle','bld-label']){
+    map.on('mouseenter',id,()=>{if(!placing)map.getCanvas().style.cursor='pointer'});
+    map.on('mouseleave',id,()=>{if(!placing)map.getCanvas().style.cursor=''});
+  }
+  map.on('moveend',loadFacadesInView);
+  addEventListener('keydown',e=>{if(e.key==='Escape'&&placing)setPlacing(false)});
+}
+const rad=g=>Math.max(6,Math.min(22,Math.sqrt((+g||0)/1500)));
+function visible(){
+  const q=query.trim().toLowerCase();
+  return buildings.filter(b=>inZone(b)&&(!onlyMissing||!hasFM(b))&&(!q||[b.name,b.address,b.district,b.fm?.company,...CATS.map(([k])=>b.staff?.[k]?.company)].some(x=>String(x||'').toLowerCase().includes(q))));
+}
+const hasPos=b=>b&&b.lat!=null&&b.lng!=null&&isFinite(b.lat)&&isFinite(b.lng);
+function drawMarkers(){
+  if(!mapReady)return;
+  const css=getComputedStyle(document.documentElement);const pin=css.getPropertyValue('--pin').trim(),hi=css.getPropertyValue('--hi').trim();
+  const features=[];
+  for(const b of visible()){
+    if(!hasPos(b))continue;
+    const sel=b.id===selId,fm=hasFM(b);
+    features.push({type:'Feature',geometry:{type:'Point',coordinates:[b.lng,b.lat]},
+      properties:{id:b.id,name:b.name,r:rad(b.gfa),fill:sel?hi:(fm?pin:'#ffffff'),stroke:sel?'#1B2A2F':pin,sw:sel?3:2,op:sel?1:(fm?.8:.9)}});
+  }
+  map.getSource('bld').setData({type:'FeatureCollection',features});
+  syncBoxes();drawTmp();
+}
+function drawTmp(){
+  if(tmpMarker){tmpMarker.remove();tmpMarker=null}
+  if(mapReady&&mode==='edit'&&hasPos(draft)){
+    const el=document.createElement('div');el.className='tmp-pin';
+    tmpMarker=new maplibregl.Marker({element:el}).setLngLat([draft.lng,draft.lat]).addTo(map);
+  }
+}
+let fitted=false;   // 처음 한 번만 전체 빌딩에 맞춤 (저장·창 전환 때 지도가 튀지 않게)
+function firstFit(){if(!fitted&&mapReady&&buildings.length){fitted=true;fitZone()}}
+function fitZone(){
+  if(!mapReady)return;
+  const pts=visible().filter(hasPos);if(!pts.length)return;
+  const bb=new maplibregl.LngLatBounds();for(const b of pts)bb.extend([b.lng,b.lat]);
+  map.fitBounds(bb,{padding:60,maxZoom:15,duration:600});
+}
+function setPlacing(on){placing=on;$('#map').classList.toggle('placing',on);$('#banner').classList.toggle('hidden',!on);if(map)map.getCanvas().style.cursor=on?'crosshair':''}
+function flyToB(b){
+  if(!mapReady||!hasPos(b))return;const m=box(b);
+  const z=Math.min(18,Math.max(15.8,18.3-Math.log2(Math.max(m.h,m.w)/45)));
+  map.flyTo({center:[b.lng,b.lat],zoom:Math.max(map.getZoom(),z),pitch:55,bearing:m.az-180+25,duration:900});
+}
+
+/* ---------- 입체 빌딩 (three.js) ---------- */
+const THREE_OK=!!window.THREE;
+const FACES=[['front','정면'],['right','우측면'],['back','후면'],['left','좌측면']];
+const OPP={front:'back',back:'front',left:'right',right:'left'};
+// 입체 치수: 저장값이 없으면 연면적·층수로 대략 추정
+function box(b){
+  const s=(mode==='edit'&&draft&&draft.id&&draft.id===b.id)?draft:b;   // 편집 중이면 입력값으로 미리보기
+  const m=s.model3d||{};const fl=Math.max(1,+s.floors_above||10);
+  let plate=(+s.gfa||0)/Math.max(1,fl+(+s.floors_below||0));if(!plate)plate=1500;plate=Math.max(300,Math.min(8000,plate));
+  const w0=Math.round(Math.sqrt(plate*1.5)),d0=Math.round(plate/w0);
+  return {w:+m.w||w0,d:+m.d||d0,h:+m.h||fl*4,az:(m.az===0||+m.az)?+m.az:180,floors:fl,faces:m.faces||{},vw:m.vw||null,auto:{w:w0,d:d0,h:fl*4}};
+}
+let genericTex=null;
+function getGeneric(){       // 사진이 없는 면: 창 한 칸 무늬를 층수·칸수만큼 반복
+  if(genericTex)return genericTex;
+  const c=document.createElement('canvas');c.width=64;c.height=64;const g=c.getContext('2d');
+  g.fillStyle='#CDD4D2';g.fillRect(0,0,64,64);
+  g.fillStyle='#7F9098';g.fillRect(7,12,50,40);
+  g.fillStyle='rgba(255,255,255,.22)';g.fillRect(7,12,50,9);
+  g.fillStyle='#B3BCBA';g.fillRect(0,60,64,4);
+  genericTex=new THREE.CanvasTexture(c);genericTex.wrapS=genericTex.wrapT=THREE.RepeatWrapping;genericTex.encoding=THREE.sRGBEncoding;genericTex.anisotropy=4;
+  return genericTex;
+}
+const facadeTex=new Map();   // 저장소 경로 → THREE.Texture | 'loading' | 'fail'
+const boxes=new Map();       // 빌딩 id → {key, scene, matrix}
+const rotX=THREE_OK?new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1,0,0),Math.PI/2):null;
+const box3d={id:'bld-3d',type:'custom',renderingMode:'3d',
+  onAdd(m,gl){
+    this.camera=new THREE.Camera();
+    this.renderer=new THREE.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:true});
+    this.renderer.autoClear=false;this.renderer.outputEncoding=THREE.sRGBEncoding;
+  },
+  render(gl,matrix){
+    if(map.getZoom()<BOX_MINZOOM-0.3)return;
+    const M=new THREE.Matrix4().fromArray(matrix);
+    for(const o of boxes.values()){this.camera.projectionMatrix=M.clone().multiply(o.matrix);this.renderer.resetState();this.renderer.render(o.scene,this.camera)}
+  }};
+function faceState(m,k){const p=m.faces[k]||m.faces[OPP[k]];const t=p&&facadeTex.get(p);return t&&t.isTexture?p:''}
+function syncBoxes(){
+  if(!THREE_OK||!mapReady)return;
+  const want=new Set();
+  for(const b of visible()){
+    if(!hasPos(b))continue;want.add(b.id);
+    const m=box(b);const key=[m.w,m.d,m.h,m.az,m.floors,b.lat,b.lng,b.id===selId,...FACES.map(([k])=>faceState(m,k))].join('|');
+    const o=boxes.get(b.id);if(o&&o.key===key)continue;
+    if(o)disposeScene(o.scene);
+    boxes.set(b.id,buildBox(b,m,key));
+  }
+  for(const [id,o] of boxes)if(!want.has(id)){disposeScene(o.scene);boxes.delete(id)}
+  map.triggerRepaint();
+}
+function disposeScene(sc){sc.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)[].concat(o.material).forEach(mt=>mt.dispose())})}
+function buildBox(b,m,key){
+  const geo=new THREE.BoxGeometry(m.w,m.h,m.d);const uv=geo.attributes.uv;
+  // 면 순서: +x 우측면, -x 좌측면, +y 옥상, -y 바닥, +z 정면, -z 후면
+  const order=['right','left',null,null,'front','back'];
+  const mats=order.map((k,gi)=>{
+    if(!k)return new THREE.MeshBasicMaterial({color:gi===2?0x98A19F:0x5E6765});
+    const p=faceState(m,k);
+    if(p)return new THREE.MeshBasicMaterial({map:facadeTex.get(p)});
+    const width=(k==='front'||k==='back')?m.w:m.d,bays=Math.max(1,Math.round(width/3.2));
+    for(let v=gi*4;v<gi*4+4;v++)uv.setXY(v,uv.getX(v)*bays,uv.getY(v)*m.floors);
+    return new THREE.MeshBasicMaterial({map:getGeneric()});
+  });
+  uv.needsUpdate=true;
+  const sel=b.id===selId;
+  const mesh=new THREE.Mesh(geo,mats);mesh.position.y=m.h/2;
+  const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:sel?0xE3A008:0x1B2A2F,transparent:true,opacity:sel?1:.35}));
+  edges.position.y=m.h/2;
+  const grp=new THREE.Group();grp.add(mesh);grp.add(edges);grp.rotation.y=-(m.az-180)*Math.PI/180;
+  const scene=new THREE.Scene();scene.add(grp);
+  const mc=maplibregl.MercatorCoordinate.fromLngLat([b.lng,b.lat],0);const s=mc.meterInMercatorCoordinateUnits();
+  const matrix=new THREE.Matrix4().makeTranslation(mc.x,mc.y,mc.z).scale(new THREE.Vector3(s,-s,s)).multiply(rotX);
+  return {key,scene,matrix};
+}
+async function loadFacadesInView(){
+  if(!THREE_OK||!mapReady||!me||map.getZoom()<BOX_MINZOOM-0.5)return;
+  const bb=map.getBounds();const need=new Set();
+  for(const b of visible()){
+    if(!hasPos(b)||!bb.contains([b.lng,b.lat]))continue;
+    for(const p of Object.values(box(b).faces))if(p&&!facadeTex.has(p))need.add(p);
+  }
+  if(!need.size)return;
+  await Promise.all([...need].map(loadFacade));syncBoxes();
+}
+async function loadFacade(p){
+  facadeTex.set(p,'loading');
+  try{
+    const {data,error}=await sb.storage.from('building-photos').download(p);if(error)throw error;
+    const url=URL.createObjectURL(data);
+    const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=url});
+    const t=new THREE.Texture(img);t.encoding=THREE.sRGBEncoding;t.anisotropy=8;t.needsUpdate=true;facadeTex.set(p,t);
+  }catch(_){facadeTex.set(p,'fail')}
+}
+function hitBox(ll){      // 입체 빌딩 바닥면 안을 눌렀는지
+  if(map.getZoom()<BOX_MINZOOM-0.3)return null;let best=null,bd=1e9;
+  for(const b of visible()){
+    if(!hasPos(b))continue;const m=box(b);
+    const dx=(ll.lng-b.lng)*111320*Math.cos(b.lat*Math.PI/180),dy=(ll.lat-b.lat)*110540;
+    const a1=(m.az-90)*Math.PI/180,a2=m.az*Math.PI/180;
+    const u=dx*Math.sin(a1)+dy*Math.cos(a1),v=dx*Math.sin(a2)+dy*Math.cos(a2);
+    if(Math.abs(u)<=m.w/2+4&&Math.abs(v)<=m.d/2+4){const d=Math.hypot(dx,dy);if(d<bd){bd=d;best=b}}
+  }
+  return best;
+}
+
+/* ---------- 실사 3D (브이월드, vworld3d.html 을 창 안에 띄움) ---------- */
+let v3open=false,v3ready=false,v3focus=null,v3link=null;
+const V3_ORIGIN=location.origin==='null'?'*':location.origin;
+function open3D(focusId,linkId){
+  v3open=true;v3link=linkId||null;
+  $('#v3wrap').classList.remove('hidden');
+  const lb=v3link&&buildings.find(x=>x.id===v3link);
+  const msg=$('#v3msg');msg.className=lb?'link':'';
+  msg.textContent=lb?`‘${lb.name}’ 건물을 3D 지도에서 클릭하세요`:'관리 빌딩을 누르면 오른쪽에 정보가 나와요';
+  const f=$('#v3');
+  if(!f.getAttribute('src')){v3focus=focusId||null;f.src='vworld3d.html'}
+  else send3D(focusId||null);
+}
+function close3D(){v3open=false;v3link=null;$('#v3wrap').classList.add('hidden');if(map)map.resize()}
+function send3D(focus){
+  if(!v3ready){if(focus)v3focus=focus;return}
+  const list=buildings.filter(hasPos).map(b=>{const m=box(b);return {id:b.id,name:b.name,lat:b.lat,lng:b.lng,h:m.h,td:m.vw?.td_id||null,sel:b.id===selId}});
+  $('#v3').contentWindow.postMessage({type:'data',buildings:list,focus:focus||null,link:!!v3link},V3_ORIGIN);
+}
+addEventListener('message',async e=>{
+  const f=$('#v3');if(!f||e.source!==f.contentWindow)return;
+  if(location.origin!=='null'&&e.origin!==location.origin)return;
+  const d=e.data||{};
+  if(d.type==='ready'){v3ready=true;const fc=v3focus;v3focus=null;send3D(fc)}
+  else if(d.type==='error'){const m=$('#v3msg');m.className='';m.textContent=String(d.msg||'실사 3D를 열지 못했어요')}
+  else if(d.type==='open'&&buildings.some(b=>b.id===d.id)){openDetail(String(d.id))}
+  else if(d.type==='pick'&&v3link&&d.td_id)linkVworld(String(d.td_id),String(d.model_name||''));
+});
+async function linkVworld(td,mn){
+  const b=buildings.find(x=>x.id===v3link);if(!b||!canEdit())return;
+  const other=buildings.find(x=>x.id!==b.id&&x.model3d?.vw?.td_id===td);
+  const model3d=Object.assign({},b.model3d||{},{vw:{td_id:td.slice(0,80),model_name:mn.slice(0,80)}});
+  const {error}=await sb.from('buildings').update({model3d}).eq('id',b.id);
+  if(error){toast(/model3d/.test(error.message)?'3D 저장 칸이 아직 없어요. supabase/04_3d.sql 을 먼저 실행하세요.':'연결하지 못했어요: '+error.message);return}
+  b.model3d=model3d;v3link=null;
+  const msg=$('#v3msg');msg.className='';msg.textContent=`‘${b.name}’에 3D 건물을 연결했어요`+(other?` (‘${other.name}’에도 같은 건물이 연결돼 있어요)`:'');
+  toast('3D 건물을 연결했어요');send3D(null);
+  if(selId===b.id&&mode==='detail')renderDetail();
+}
+$('#v3open').onclick=()=>open3D(selId,null);
+$('#v3close').onclick=close3D;
+
+/* ================= 오른쪽 패널 ================= */
+function renderPanel(){if(mode==='detail')return renderDetail();if(mode==='edit'&&draft)return renderEdit();mode='dash';renderDash()}
+function renderDash(){
+  const p=$('#panel');const vis=visible();
+  const zb=buildings.filter(inZone);
+  const g=zb.reduce((s,b)=>s+(+b.gfa||0),0),st=zb.reduce((s,b)=>s+staffTotal(b),0),withFM=zb.filter(hasFM).length;
+  const by={};for(const b of zb){const k=hasFM(b)?b.fm.company.trim():'__none';by[k]=(by[k]||0)+1}
+  const rows=Object.entries(by).sort((a,b)=>(a[0]==='__none')-(b[0]==='__none')||b[1]-a[1]).slice(0,9);
+  const mx=Math.max(1,...rows.map(r=>r[1]));
+  p.innerHTML=`<div class="pad">
+    <h2 style="margin-top:0">${esc(ZNAME[zone])}</h2>
+    <div class="kpis" style="margin-top:10px">
+      <div class="kpi"><b>${zb.length}</b><span>빌딩</span></div>
+      <div class="kpi"><b>${g/PY>=10000?(g/PY/10000).toFixed(1)+'만':n0(g/PY)}</b><span>연면적(평)</span></div>
+      <div class="kpi"><b>${n0(st)}</b><span>관리 인력</span></div>
+      <div class="kpi"><b>${zb.length?Math.round(withFM/zb.length*100):0}%</b><span>관리사 입력</span></div>
+    </div>
+    <h3>시설관리회사별 빌딩 수</h3>
+    ${rows.length?`<div class="bars">${rows.map(([k,n])=>`<div class="barrow"><span class="nm" title="${esc(k==='__none'?'미입력':k)}">${k==='__none'?'<span class="flag">미입력</span>':esc(k)}</span><div class="bar"><i class="${k==='__none'?'none':''}" style="width:${n/mx*100}%"></i></div><span class="n">${n}</span></div>`).join('')}</div>`:'<div class="hint">빌딩이 없어요.</div>'}
+    <h3>빌딩 목록</h3>
+    <div class="toolbar"><input id="q" placeholder="빌딩명·주소·관리사 검색" value="${esc(query)}" aria-label="검색">
+      ${canEdit()?'<button class="btn pri" id="add">빌딩 추가</button>':''}</div>
+    <label class="keep" style="margin-top:8px"><input type="checkbox" id="miss" ${onlyMissing?'checked':''}> 관리사 미입력만</label>
+    ${vis.length?`<ul class="list">${vis.map(b=>`<li><button data-id="${esc(b.id)}"><span class="nm">${esc(b.name)}</span>
+      <span class="num">${fmtPy(b.gfa)}${staffTotal(b)?'<br><small>'+staffTotal(b)+'명</small>':''}</span>
+      <span class="sub">${esc(b.district||'')}${zone==='all'&&b.zone?' · '+esc(ZNAME[b.zone]||''):''} · ${hasFM(b)?esc(b.fm.company):'<span class="flag">관리사 미입력</span>'}</span></button></li>`).join('')}</ul>`
+      :`<div class="hint" style="padding:16px 0">${zb.length?'조건에 맞는 빌딩이 없어요.':'이 권역에 등록된 빌딩이 없어요.'}</div>`}
+  </div>`;
+  const qi=$('#q');qi.oninput=()=>{query=qi.value;const pos=qi.selectionStart;drawMarkers();renderDash();const n=$('#q');n.focus();n.setSelectionRange(pos,pos)};
+  $('#miss').onchange=e=>{onlyMissing=e.target.checked;drawMarkers();renderDash()};
+  if($('#add'))$('#add').onclick=()=>startEdit(null);
+  p.querySelectorAll('.list [data-id]').forEach(b=>b.onclick=()=>openDetail(b.dataset.id,true));
+}
+function openDetail(id,fly){
+  selId=id;mode='detail';photoIdx=0;delArm=false;setPlacing(false);drawMarkers();renderDetail();$('#panel').scrollTop=0;
+  const b=buildings.find(x=>x.id===id);
+  if(fly&&b)flyToB(b);
+  if(v3open&&!v3link)send3D(null);
+}
+async function photoUrls(paths){
+  const now=Date.now(),need=paths.filter(p=>!(signed.get(p)?.exp>now+60000));
+  if(need.length){const {data}=await sb.storage.from('building-photos').createSignedUrls(need,3600);
+    for(const d of data||[])if(d.signedUrl)signed.set(d.path,{url:d.signedUrl,exp:now+3600000})}
+  return paths.map(p=>signed.get(p)?.url||'');
+}
+async function renderDetail(){
+  const p=$('#panel');const b=buildings.find(x=>x.id===selId);
+  if(!b){mode='dash';return renderDash()}
+  const ph=b.photos||[];const mx=Math.max(1,...CATS.map(([k])=>+(b.staff?.[k]?.n)||0));
+  const m3=(()=>{const x=box(b);return {n:FACES.filter(([k])=>x.faces[k]).length,vw:x.vw}})();
+  const fl=[b.floors_above?`지상 ${b.floors_above}층`:'',b.floors_below?`지하 ${b.floors_below}층`:''].filter(Boolean).join(' / ');
+  p.innerHTML=`<div class="pad">
+    <button class="back" id="back">← ${esc(ZNAME[zone])}</button>
+    <div class="photo" id="ph">${ph.length?'사진 불러오는 중…':'등록된 사진이 없어요'}</div>
+    <div class="thumbs" id="thumbs"></div>
+    <h2>${esc(b.name)}</h2><p class="hint" style="margin:0">${esc(b.address||'주소 미입력')}</p>
+    <h3>기본 정보</h3>
+    <div class="big">${fmtPy(b.gfa)}</div><div class="hint" style="margin-bottom:10px">연면적 ${fmtM2(b.gfa)}</div>
+    <dl><dt>권역</dt><dd>${esc(ZNAME[b.zone]||'—')}</dd>
+      <dt>지역</dt><dd>${esc([b.region,b.district].filter(Boolean).join(' ')||'—')}</dd>
+      <dt>용도</dt><dd>${esc(b.use_type||'—')}</dd><dt>규모</dt><dd>${esc(fl||'—')}</dd>
+      <dt>준공</dt><dd>${esc(b.completed||'—')}</dd><dt>소유주</dt><dd>${esc(b.owner||'—')}</dd></dl>
+    <h3>시설관리</h3>
+    <dl><dt>관리회사</dt><dd>${hasFM(b)?esc(b.fm.company):'<span class="flag">미입력</span>'}</dd>
+      <dt>담당자</dt><dd>${esc(b.fm?.manager||'—')}</dd><dt>연락처</dt><dd>${esc(b.fm?.contact||'—')}</dd><dt>계약기간</dt><dd>${esc(b.fm?.period||'—')}</dd></dl>
+    <h3>관리 인력 · 총 ${staffTotal(b)}명</h3>
+    ${CATS.map(([k,l])=>{const s=b.staff?.[k]||{};const n=+s.n||0;return `<div class="srow"><span>${l}</span><div class="bar"><i style="width:${n/mx*100}%"></i></div><span class="n">${n}명</span>${s.company?`<span class="scomp">${esc(s.company)}</span>`:''}</div>`}).join('')}
+    <h3>3D</h3>
+    <dl><dt>외벽 사진</dt><dd>${m3.n}/4면${m3.n?'':' <span class="hint">(수정 화면에서 올릴 수 있어요)</span>'}</dd>
+      <dt>실사 3D</dt><dd>${m3.vw?'브이월드 건물 연결됨':'<span class="hint">연결 안 됨</span>'}</dd></dl>
+    <div class="actions" style="margin-top:10px"><button class="btn" id="v3go" type="button">실사 3D로 보기</button>${canEdit()?`<button class="btn" id="v3lk" type="button">${m3.vw?'3D 건물 다시 연결':'3D 건물 연결'}</button>`:''}</div>
+    ${b.memo?`<div class="note">${esc(b.memo)}</div>`:''}
+    <div class="hint" style="margin-top:10px">최종 수정 ${b.updated_at?esc(new Date(b.updated_at).toLocaleString('ko-KR')):''} ${b.updated_by?'· '+esc(names[b.updated_by]||''):''}${b.verified?' · 확인 완료':''}</div>
+    <h3>변경 이력</h3><ul class="hist" id="hist"><li><small>불러오는 중…</small></li></ul>
+    ${canEdit()?`<div class="actions"><button class="btn pri" id="edit">정보 수정</button>${isAdmin()?`<button class="btn warn" id="del">${delArm?'정말 삭제':'삭제'}</button>`:''}</div>`:''}
+  </div>`;
+  $('#back').onclick=()=>{mode='dash';selId=null;drawMarkers();renderDash()};
+  if($('#edit'))$('#edit').onclick=()=>startEdit(b);
+  $('#v3go').onclick=()=>open3D(b.id,null);
+  if($('#v3lk'))$('#v3lk').onclick=()=>open3D(b.id,b.id);
+  if($('#del'))$('#del').onclick=async()=>{if(!delArm){delArm=true;return renderDetail()}
+    const {error}=await sb.from('buildings').delete().eq('id',b.id);
+    if(error)return toast('삭제하지 못했어요: '+error.message);
+    toast('삭제했어요');mode='dash';selId=null;loadAll()};
+  if(ph.length){const urls=await photoUrls(ph);if(selId!==b.id||mode!=='detail')return;
+    const show=i=>{photoIdx=i;$('#ph').innerHTML=urls[i]?`<img src="${esc(urls[i])}" alt="${esc(b.name)} 사진">`:'사진을 불러오지 못했어요';
+      $('#thumbs').querySelectorAll('button').forEach((t,j)=>t.setAttribute('aria-current',String(j===i)))};
+    if(urls.length>1){$('#thumbs').innerHTML=urls.map((u,i)=>`<button data-i="${i}"><img src="${esc(u)}" alt=""></button>`).join('');
+      $('#thumbs').querySelectorAll('button').forEach(t=>t.onclick=()=>show(+t.dataset.i))}
+    show(Math.min(photoIdx,urls.length-1))}
+  const {data:logs}=await sb.from('logs').select('at,user_id,action,fields').eq('building_id',b.id).order('at',{ascending:false}).limit(20);
+  const h=$('#hist');if(!h||selId!==b.id)return;h.innerHTML='';
+  if(!logs||!logs.length){h.innerHTML='<li><small>변경 이력이 없어요.</small></li>';return}
+  for(const l of logs){const li=document.createElement('li');
+    li.textContent=`${l.action}${l.fields&&l.fields.length?' ('+l.fields.join(', ')+')':''} · ${names[l.user_id]||'시스템'} `;
+    const sm=document.createElement('small');sm.textContent=new Date(l.at).toLocaleString('ko-KR');li.appendChild(sm);h.appendChild(li)}
+}
+
+/* ================= 편집 ================= */
+function startEdit(b){
+  draft=b?JSON.parse(JSON.stringify(b)):{name:'',photos:[],fm:{},staff:{},isNew:true,zoneAuto:true};
+  draft.fm=draft.fm||{};draft.staff=draft.staff||{};draft.photos=draft.photos||[];
+  draft.model3d=JSON.parse(JSON.stringify(draft.model3d||{}));draft.model3d.faces=draft.model3d.faces||{};
+  if(!draft.isNew)draft.zoneAuto=(draft.zone===autoZone(draft.region,draft.district));
+  draft._geoMsg='';mode='edit';setPlacing(false);renderEdit();$('#panel').scrollTop=0;
+}
+function collect(){
+  const f=$('#ef');if(!f)return;const v=n=>f.elements[n].value.trim();const num=n=>{const s=v(n).replace(/,/g,'');return s===''?null:+s};
+  Object.assign(draft,{name:v('name'),address:v('address'),region:v('region')||null,district:v('district')||null,use_type:v('use_type'),owner:v('owner'),
+    completed:v('completed'),floors_above:num('fa'),floors_below:num('fb'),memo:v('memo'),lat:num('lat'),lng:num('lng'),verified:f.elements.verified.checked});
+  draft.zoneAuto=v('zone')==='auto';draft.zone=draft.zoneAuto?autoZone(draft.region,draft.district):v('zone');
+  const gm=num('gfa_m2');draft.gfa=gm;
+  draft.fm={company:v('fm_company'),manager:v('fm_manager'),contact:v('fm_contact'),period:v('fm_period')};
+  const st={};for(const [k] of CATS){const n=num('s_'+k)||0,c=v('c_'+k);if(n||c)st[k]={n,company:c}}draft.staff=st;
+  const m3=draft.model3d;m3.w=num('m3_w');m3.d=num('m3_d');m3.h=num('m3_h');m3.az=+f.elements.m3_az.value;
+}
+function cleanModel(m){
+  const o={};for(const k of ['w','d','h'])if(m[k]!=null&&isFinite(m[k])&&m[k]>0)o[k]=Math.min(1000,+m[k]);
+  if(m.az!=null&&isFinite(m.az))o.az=((Math.round(+m.az)%360)+360)%360;
+  const f={};for(const [k] of FACES)if(m.faces&&m.faces[k])f[k]=m.faces[k];if(Object.keys(f).length)o.faces=f;
+  if(m.vw&&m.vw.td_id)o.vw=m.vw;return o;
+}
+async function renderEdit(){
+  const p=$('#panel');const d=draft;const val=x=>esc(x??'');const bx=box(d);
+  p.innerHTML=`<div class="pad"><button class="back" id="cancel">← 취소</button>
+  <h2 style="margin-top:0">${d.isNew?'빌딩 추가':'정보 수정'}</h2>
+  <form id="ef" onsubmit="return false">
+    <h3>기본 정보</h3>
+    <div class="f"><label for="name">빌딩명 *</label><input id="name" name="name" maxlength="120" value="${val(d.name)}"></div>
+    <div class="f"><label for="address">주소</label><div style="display:flex;gap:6px"><input id="address" name="address" maxlength="200" value="${val(d.address)}" placeholder="예: 서울 중구 세종대로 136"><button class="btn" id="geo" type="button" style="white-space:nowrap">위치 찾기</button></div>
+      <div class="hint" id="gst">${esc(d._geoMsg||'')}</div></div>
+    <div class="g2"><div class="f"><label for="region">시도</label><select id="region" name="region">${['','서울','경기','인천'].map(r=>`<option ${r===(d.region||'')?'selected':''}>${r}</option>`).join('')}</select></div>
+      <div class="f"><label for="district">시군구</label><input id="district" name="district" value="${val(d.district)}"></div></div>
+    <div class="f"><label for="zone">권역</label><select id="zone" name="zone"><option value="auto" ${d.zoneAuto?'selected':''}>자동 (시군구 기준)</option>${ZONES.filter(z=>z.id!=='all').map(z=>`<option value="${z.id}" ${!d.zoneAuto&&d.zone===z.id?'selected':''}>${esc(z.name)}</option>`).join('')}</select></div>
+    <div class="g2"><div class="f"><label for="gfa_m2">연면적(㎡)</label><input id="gfa_m2" name="gfa_m2" inputmode="decimal" value="${val(d.gfa)}"></div>
+      <div class="f"><label for="gfa_py">연면적(평)</label><input id="gfa_py" inputmode="decimal" value="${d.gfa?Math.round(d.gfa/PY):''}"></div></div>
+    <div class="g3"><div class="f"><label for="fa">지상층</label><input id="fa" name="fa" inputmode="numeric" value="${val(d.floors_above)}"></div>
+      <div class="f"><label for="fb">지하층</label><input id="fb" name="fb" inputmode="numeric" value="${val(d.floors_below)}"></div>
+      <div class="f"><label for="completed">준공</label><input id="completed" name="completed" value="${val(d.completed)}"></div></div>
+    <div class="g2"><div class="f"><label for="use_type">용도</label><input id="use_type" name="use_type" value="${val(d.use_type)}"></div>
+      <div class="f"><label for="owner">소유주</label><input id="owner" name="owner" value="${val(d.owner)}"></div></div>
+    <div class="g2"><div class="f"><label for="lat">위도</label><input id="lat" name="lat" inputmode="decimal" value="${val(d.lat)}"></div>
+      <div class="f"><label for="lng">경도</label><input id="lng" name="lng" inputmode="decimal" value="${val(d.lng)}"></div></div>
+    <button class="btn" id="place" type="button">지도에서 위치 지정</button>
+    <h3>사진</h3>
+    <input type="file" id="pf" accept="image/jpeg,image/png,image/webp" multiple aria-label="사진 추가"><div class="hint" id="pst">사진 1장당 10MB 이하</div>
+    <div class="ph-edit" id="phEdit"></div>
+    <h3>3D 모습</h3>
+    <div class="hint">지도를 확대하면 빌딩이 입체로 서요. 외벽 사진을 올리면 그 면에 사진이 입혀지고, 사진이 없는 면은 반대편 사진으로 채워요.</div>
+    <div class="g3" style="margin-top:8px"><div class="f"><label for="m3_w">정면 폭(m)</label><input id="m3_w" name="m3_w" inputmode="decimal" placeholder="자동 ${bx.auto.w}" value="${val(d.model3d.w)}"></div>
+      <div class="f"><label for="m3_d">측면 깊이(m)</label><input id="m3_d" name="m3_d" inputmode="decimal" placeholder="자동 ${bx.auto.d}" value="${val(d.model3d.d)}"></div>
+      <div class="f"><label for="m3_h">높이(m)</label><input id="m3_h" name="m3_h" inputmode="decimal" placeholder="자동 ${bx.auto.h}" value="${val(d.model3d.h)}"></div></div>
+    <div class="f"><label for="m3_az">정면이 향한 방향 <b id="azv">${bx.az}° ${dirName(bx.az)}</b></label><input id="m3_az" name="m3_az" type="range" min="0" max="359" value="${bx.az}" style="padding:0"></div>
+    <div class="faces">${FACES.map(([k,l])=>{const fp=d.model3d.faces[k];return `<div class="face ${fp?'has':''}"><span>${l}</span>
+      <label class="thumb" data-ft="${k}">${fp?'':'사진 올리기'}<input type="file" accept="image/*,.heic,.heif" data-face="${k}" hidden></label>
+      ${fp?`<button class="btn" type="button" data-fdel="${k}">빼기</button>`:''}</div>`}).join('')}</div>
+    <div class="hint" id="fst"></div>
+    <h3>시설관리회사</h3>
+    <div class="f"><label for="fm_company">관리회사</label><input id="fm_company" name="fm_company" value="${val(d.fm.company)}"></div>
+    <div class="g2"><div class="f"><label for="fm_manager">담당자</label><input id="fm_manager" name="fm_manager" value="${val(d.fm.manager)}"></div>
+      <div class="f"><label for="fm_contact">연락처</label><input id="fm_contact" name="fm_contact" value="${val(d.fm.contact)}"></div></div>
+    <div class="f"><label for="fm_period">계약기간</label><input id="fm_period" name="fm_period" value="${val(d.fm.period)}" placeholder="예: 2025.01 ~ 2027.12"></div>
+    <h3>관리 인력</h3>
+    ${CATS.map(([k,l])=>`<div class="stf"><span>${l}</span><input name="s_${k}" inputmode="numeric" aria-label="${l} 인원" placeholder="명" value="${val(d.staff[k]?.n||'')}"><input name="c_${k}" aria-label="${l} 협력사" placeholder="협력사(선택)" value="${val(d.staff[k]?.company)}"></div>`).join('')}
+    <h3>메모</h3>
+    <div class="f"><textarea name="memo" rows="3" aria-label="메모">${val(d.memo)}</textarea></div>
+    <label class="keep"><input type="checkbox" name="verified" ${d.verified?'checked':''}> 건축물대장 등으로 확인 완료</label>
+    <div class="actions"><button class="btn pri" id="save" type="button">저장</button><button class="btn" id="cancel2" type="button">취소</button></div>
+    <div class="err" id="err"></div>
+  </form></div>`;
+  const cancel=()=>{setPlacing(false);const n=draft.isNew;draft=null;mode=n?'dash':'detail';drawMarkers();renderPanel()};
+  $('#cancel').onclick=cancel;$('#cancel2').onclick=cancel;
+  const gm=$('#gfa_m2'),gp=$('#gfa_py');
+  gm.oninput=()=>{const x=+gm.value.replace(/,/g,'');gp.value=x?Math.round(x/PY):''};
+  gp.oninput=()=>{const x=+gp.value.replace(/,/g,'');gm.value=x?Math.round(x*PY):''};
+  $('#place').onclick=()=>{collect();setPlacing(true);if(innerWidth<=860)$('#map').scrollIntoView({behavior:'smooth'})};
+  $('#geo').onclick=geocode;
+  $('#pf').onchange=uploadPhotos;
+  const m3in=()=>{collect();const a=draft.model3d.az;$('#azv').textContent=`${a}° ${dirName(a)}`;syncBoxes()};
+  for(const id of ['m3_w','m3_d','m3_h','m3_az','fa','fb','gfa_m2'])$('#'+id).addEventListener('input',m3in);
+  p.querySelectorAll('input[data-face]').forEach(el=>el.onchange=()=>{const fl=el.files[0];if(fl)addFacade(el.dataset.face,fl)});
+  p.querySelectorAll('[data-fdel]').forEach(el=>el.onclick=()=>{collect();delete draft.model3d.faces[el.dataset.fdel];syncBoxes();renderEdit()});
+  facadeThumbs(d);
+  $('#save').onclick=save;
+  drawTmp();
+  if(d.photos.length){const urls=await photoUrls(d.photos);if(mode!=='edit'||draft!==d)return;
+    $('#phEdit').innerHTML=d.photos.map((x,i)=>`<div><img src="${esc(urls[i])}" alt=""><button type="button" data-rm="${i}" aria-label="사진 빼기">✕</button></div>`).join('');
+    $('#phEdit').querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{collect();draft.photos.splice(+b.dataset.rm,1);renderEdit()})}
+}
+async function geocode(){
+  collect();const st=$('#gst');
+  if(!draft.address&&!draft.name){st.textContent='주소를 먼저 입력하세요.';return}
+  $('#geo').disabled=true;st.textContent='위치를 찾는 중…';
+  const {data,error}=await sb.functions.invoke('geocode',{body:{address:draft.address,name:draft.name}});
+  if(error||!data||!data.ok){draft._geoMsg=error?'위치 찾기 서버에 연결하지 못했어요. 지도에서 직접 찍어 주세요.':'이 주소를 찾지 못했어요. 주소를 확인하거나 지도에서 직접 찍어 주세요.';renderEdit();return}
+  draft.lat=+(+data.lat).toFixed(6);draft.lng=+(+data.lng).toFixed(6);
+  const r1=String(data.region1||'');draft.region=r1.startsWith('서울')?'서울':r1.startsWith('경기')?'경기':r1.startsWith('인천')?'인천':draft.region;
+  if(data.region2)draft.district=String(data.region2).replace(/\s/g,'');
+  if(draft.zoneAuto)draft.zone=autoZone(draft.region,draft.district);
+  draft._geoMsg='찾은 위치: '+data.matched+(data.via==='keyword'?' (건물명으로 찾음)':'')+' — 지도에서 확인하세요.';
+  renderEdit();if(mapReady)map.flyTo({center:[draft.lng,draft.lat],zoom:17});
+}
+async function uploadPhotos(e){
+  collect();const files=[...e.target.files];const st=$('#pst');const key=draft.id||(draft.id=crypto.randomUUID());
+  for(const [i,f] of files.entries()){
+    if(f.size>10*1024*1024){st.textContent=f.name+' 은(는) 10MB를 넘어요.';continue}
+    st.textContent=`업로드 중 ${i+1}/${files.length}…`;
+    const ext=({'image/png':'png','image/webp':'webp'})[f.type]||'jpg';
+    const path=`${key}/${crypto.randomUUID()}.${ext}`;
+    const {error}=await sb.storage.from('building-photos').upload(path,f,{contentType:f.type,upsert:false});
+    if(error){st.textContent='업로드하지 못했어요: '+error.message;return}
+    draft.photos.push(path);
+  }
+  renderEdit();
+}
+async function save(){
+  collect();const er=$('#err');
+  if(!draft.name){er.textContent='빌딩명을 입력하세요.';return}
+  if(draft.lat==null||draft.lng==null||!isFinite(draft.lat)||!isFinite(draft.lng)){er.textContent='위치를 지정하세요. ‘위치 찾기’나 ‘지도에서 위치 지정’을 쓰세요.';return}
+  const row={name:draft.name,address:draft.address||null,region:draft.region,district:draft.district,zone:draft.zone,gfa:draft.gfa,
+    floors_above:draft.floors_above,floors_below:draft.floors_below,completed:draft.completed||null,use_type:draft.use_type||null,owner:draft.owner||null,
+    lat:draft.lat,lng:draft.lng,photos:draft.photos,fm:draft.fm,staff:draft.staff,memo:draft.memo||null,verified:!!draft.verified,model3d:cleanModel(draft.model3d)};
+  $('#save').disabled=true;er.textContent='';
+  let res;
+  if(draft.isNew)res=await sb.from('buildings').insert({...row,...(draft.id?{id:draft.id}:{})}).select('id');
+  else res=await sb.from('buildings').update(row).eq('id',draft.id).select('id');
+  if(res.error||!res.data||!res.data.length){$('#save').disabled=false;er.textContent=res.error?(/model3d/.test(res.error.message)?'3D 저장 칸이 아직 없어요. Supabase 에서 supabase/04_3d.sql 을 먼저 실행하세요.':'저장하지 못했어요: '+res.error.message):'저장 권한이 없어요.';return}
+  const id=res.data[0].id;draft=null;mode='detail';selId=id;setPlacing(false);toast('저장했어요');
+  await loadAll();openDetail(id);
+}
+
+/* ================= 3D 외벽 사진 ================= */
+function dirName(a){return ['북향','북동향','동향','남동향','남향','남서향','서향','북서향'][Math.round((+a||0)/45)%8]}
+const facadeThumb=new Map();   // 방금 올린 외벽 사진의 미리보기 (경로 → dataURL)
+async function facadeThumbs(d){
+  const ks=FACES.map(([k])=>k).filter(k=>d.model3d.faces[k]);if(!ks.length)return;
+  const paths=ks.map(k=>d.model3d.faces[k]).filter(p=>!facadeThumb.has(p));
+  const urls=paths.length?await photoUrls(paths):[];const u=Object.fromEntries(paths.map((p,i)=>[p,urls[i]]));
+  if(mode!=='edit'||draft!==d)return;
+  for(const k of ks){const p=d.model3d.faces[k];const el=document.querySelector(`[data-ft="${k}"]`);const src=facadeThumb.get(p)||u[p];
+    if(el&&src)el.style.backgroundImage=`url("${src.replace(/"/g,'%22')}")`}
+}
+const isHeic=f=>/heic|heif/i.test(f.type)||/\.(heic|heif)$/i.test(f.name);
+const readURL=blob=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=()=>no(r.error);r.readAsDataURL(blob)});
+const decodeImg=url=>new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(new Error('decode'));i.src=url});
+function loadHeic2any(){
+  if(window.heic2any)return Promise.resolve();
+  return new Promise((ok,no)=>{const sc=document.createElement('script');
+    sc.src='https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+    sc.integrity='sha384-OTofQ0MEeiSgh62havBcemCIK0gqj809wX6UA0uPISNMRnR6NZyCdGzX3SbLrgwL';sc.crossOrigin='anonymous';
+    sc.onload=ok;sc.onerror=no;document.head.appendChild(sc)});
+}
+async function addFacade(k,file){
+  collect();const st=$('#fst');const d=draft;
+  if(!/^image\//.test(file.type)&&!isHeic(file)){st.textContent='이미지 파일만 올릴 수 있어요 (JPG, PNG, HEIC).';return}
+  st.textContent='사진을 여는 중…';
+  let img;
+  try{
+    try{img=await decodeImg(await readURL(file))}
+    catch(e){
+      if(!isHeic(file))throw e;
+      st.textContent='아이폰 사진(HEIC)을 JPG로 바꾸는 중…';
+      await loadHeic2any();const out=await heic2any({blob:file,toType:'image/jpeg',quality:.9});
+      img=await decodeImg(await readURL(Array.isArray(out)?out[0]:out));
+    }
+  }catch(_){st.textContent=isHeic(file)?'아이폰 사진(HEIC)을 열지 못했어요. JPG로 저장해서 다시 올려 주세요.':'사진을 열지 못했어요. JPG나 PNG로 다시 올려 주세요.';return}
+  const MAX=2400,sc=Math.min(1,MAX/Math.max(img.naturalWidth,img.naturalHeight));
+  const src=document.createElement('canvas');src.width=Math.round(img.naturalWidth*sc);src.height=Math.round(img.naturalHeight*sc);
+  src.getContext('2d').drawImage(img,0,0,src.width,src.height);
+  st.textContent='';
+  const bx=box(d);const wm=(k==='front'||k==='back')?bx.w:bx.d;
+  const out=await facadeEditor(FACES.find(f=>f[0]===k)[1],src,wm,bx.h);
+  if(!out||draft!==d)return;
+  st.textContent='외벽 사진을 올리는 중…';
+  const blob=await new Promise(r=>out.toBlob(r,'image/jpeg',.88));
+  const key=d.id||(d.id=crypto.randomUUID());
+  const path=`${key}/facade-${k}-${crypto.randomUUID()}.jpg`;
+  const {error}=await sb.storage.from('building-photos').upload(path,blob,{contentType:'image/jpeg',upsert:false});
+  if(error){st.textContent='올리지 못했어요: '+error.message;return}
+  if(THREE_OK){const t=new THREE.CanvasTexture(out);t.encoding=THREE.sRGBEncoding;t.anisotropy=8;facadeTex.set(path,t)}
+  const th=document.createElement('canvas');th.width=150;th.height=Math.round(out.height*150/out.width);th.getContext('2d').drawImage(out,0,0,th.width,th.height);
+  facadeThumb.set(path,th.toDataURL('image/jpeg',.8));
+  if(draft!==d)return;
+  d.model3d.faces[k]=path;st.textContent='';syncBoxes();renderEdit();
+  if(mapReady&&hasPos(d))flyToB(d);
+}
+/* 원근 보정: 사진 속 외벽 네 모서리를 반듯한 직사각형으로 편다 */
+function facadeEditor(label,src,wm,hm){
+  return new Promise(resolve=>{
+    const m=modal(`<h2>${esc(label)} 원근 보정</h2>
+      <p class="hint" style="margin:0">주황색 점 4개를 사진 속 외벽의 네 모서리(옥상 좌·우, 지면 좌·우)에 맞춰 끌어 놓으세요. 올려다보고 찍어 좁아진 윗부분이 반듯하게 펴져요.</p>
+      <div class="fx"><div class="fxc" id="fxw"><canvas id="fxcv"></canvas></div><div class="fxp"><span class="hint">결과 미리보기</span><canvas id="fxpv"></canvas></div></div>
+      <div class="actions"><button class="btn pri" id="fxOk" type="button">보정 적용</button><button class="btn" id="fxRaw" type="button">보정 없이 사용</button><button class="btn" id="fxX" type="button">취소</button></div>`);
+    const cv=m.querySelector('#fxcv'),cx=cv.getContext('2d'),iw=src.width,ih=src.height;
+    const pts=[{x:iw*.15,y:ih*.08},{x:iw*.85,y:ih*.08},{x:iw*.92,y:ih*.94},{x:iw*.08,y:ih*.94}];
+    let s=1,drag=-1;
+    const size=()=>{const w=m.querySelector('#fxw');const aw=Math.max(200,w.clientWidth-16),ah=Math.min(innerHeight*.55,560);s=Math.min(aw/iw,ah/ih);cv.width=Math.round(iw*s);cv.height=Math.round(ih*s)};
+    const draw=()=>{
+      cx.drawImage(src,0,0,cv.width,cv.height);const P=pts.map(p=>[p.x*s,p.y*s]);
+      cx.fillStyle='rgba(0,0,0,.35)';cx.beginPath();cx.rect(0,0,cv.width,cv.height);cx.moveTo(...P[0]);cx.lineTo(...P[3]);cx.lineTo(...P[2]);cx.lineTo(...P[1]);cx.closePath();cx.fill();
+      cx.strokeStyle='#F08A4B';cx.lineWidth=2;cx.beginPath();cx.moveTo(...P[0]);P.slice(1).forEach(p=>cx.lineTo(...p));cx.closePath();cx.stroke();
+      const L=['옥상 좌','옥상 우','지면 우','지면 좌'];
+      P.forEach((p,i)=>{cx.fillStyle='#C8581F';cx.beginPath();cx.arc(p[0],p[1],9,0,7);cx.fill();cx.strokeStyle='#fff';cx.lineWidth=2;cx.stroke();
+        cx.font='600 12px sans-serif';cx.fillStyle='#fff';cx.fillText(L[i],p[0]+12,p[1]+(i<2?-10:18))});
+    };
+    const outSize=()=>{let W=1024,H=Math.round(W*hm/wm);if(H>4096){H=4096;W=Math.max(256,Math.round(H*wm/hm))}
+      if(W*H>3.2e6){const f=Math.sqrt(3.2e6/(W*H));W=Math.round(W*f);H=Math.round(H*f)}return [W,Math.max(128,H)]};
+    const preview=()=>{const [W,H]=outSize();const f=Math.min(1,140/W);const pw=Math.round(W*f),ph=Math.round(H*f);
+      const o=warp(src,pts,pw,ph);const pv=m.querySelector('#fxpv');pv.width=pw;pv.height=ph;pv.getContext('2d').drawImage(o,0,0)};
+    const at=e=>{const r=cv.getBoundingClientRect(),k=cv.width/r.width;return {x:Math.max(0,Math.min(cv.width,(e.clientX-r.left)*k)),y:Math.max(0,Math.min(cv.height,(e.clientY-r.top)*k))}};
+    cv.addEventListener('pointerdown',e=>{const q=at(e);let bi=0,bd=1e9;pts.forEach((p,i)=>{const dd=Math.hypot(p.x*s-q.x,p.y*s-q.y);if(dd<bd){bd=dd;bi=i}});
+      pts[bi]={x:q.x/s,y:q.y/s};drag=bi;cv.setPointerCapture(e.pointerId);draw()});
+    cv.addEventListener('pointermove',e=>{if(drag<0)return;const q=at(e);pts[drag]={x:q.x/s,y:q.y/s};draw()});
+    cv.addEventListener('pointerup',()=>{if(drag>=0){drag=-1;preview()}});
+    const done=v=>{closeModal();resolve(v)};
+    m.querySelector('#fxOk').onclick=()=>done(warp(src,pts,...outSize()));
+    m.querySelector('#fxRaw').onclick=()=>done(warp(src,[{x:0,y:0},{x:iw,y:0},{x:iw,y:ih},{x:0,y:ih}],...outSize()));
+    m.querySelector('#fxX').onclick=()=>done(null);
+    requestAnimationFrame(()=>{size();draw();preview()});
+  });
+}
+function homography(dst,src){   // 결과 좌표(u,v) → 원본 좌표(x,y)
+  const A=[];
+  for(let i=0;i<4;i++){const [u,v]=dst[i],[x,y]=src[i];A.push([u,v,1,0,0,0,-u*x,-v*x,x]);A.push([0,0,0,u,v,1,-u*y,-v*y,y])}
+  const n=8;
+  for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(A[r][c])>Math.abs(A[p][c]))p=r;[A[c],A[p]]=[A[p],A[c]];
+    for(let r=0;r<n;r++){if(r===c)continue;const f=A[r][c]/A[c][c];for(let k=c;k<=n;k++)A[r][k]-=f*A[c][k]}}
+  return A.map((r,i)=>r[n]/r[i]);
+}
+function warp(src,pts,W,H){
+  const sd=src.getContext('2d').getImageData(0,0,src.width,src.height),s=sd.data,sw=src.width,sh=src.height;
+  const [a,b,c,d,e,f,g,h]=homography([[0,0],[W,0],[W,H],[0,H]],pts.map(p=>[p.x,p.y]));
+  const out=document.createElement('canvas');out.width=W;out.height=H;
+  const oc=out.getContext('2d'),od=oc.createImageData(W,H),o=od.data;
+  for(let v=0;v<H;v++)for(let u=0;u<W;u++){
+    const den=g*u+h*v+1,x=(a*u+b*v+c)/den,y=(d*u+e*v+f)/den;
+    const x0=Math.max(0,Math.min(sw-2,x|0)),y0=Math.max(0,Math.min(sh-2,y|0)),fx=Math.min(1,Math.max(0,x-x0)),fy=Math.min(1,Math.max(0,y-y0));
+    const i00=(y0*sw+x0)*4,i10=i00+4,i01=i00+sw*4,i11=i01+4,oi=(v*W+u)*4;
+    for(let ch=0;ch<3;ch++)o[oi+ch]=(s[i00+ch]*(1-fx)+s[i10+ch]*fx)*(1-fy)+(s[i01+ch]*(1-fx)+s[i11+ch]*fx)*fy;
+    o[oi+3]=255;
+  }
+  oc.putImageData(od,0,0);return out;
+}
+
+/* ================= 비밀번호 변경 ================= */
+function modal(html){const r=$('#modalRoot');r.innerHTML=`<div class="modal" role="dialog" aria-modal="true"><div>${html}</div></div>`;return r.firstChild}
+function closeModal(){$('#modalRoot').innerHTML=''}
+const pwRule=p=>p.length>=10&&/[A-Za-z]/.test(p)&&/\d/.test(p);
+function openPwModal(forced){
+  const m=modal(`<h2>${forced?'처음 로그인 — 비밀번호를 바꿔 주세요':'비밀번호 변경'}</h2>
+    <form onsubmit="return false" style="max-width:360px">
+      <input type="text" autocomplete="username" value="${esc(me.login_id)}" hidden>
+      <div class="f" style="display:grid;gap:4px;margin-bottom:10px"><label for="np1">새 비밀번호</label><input id="np1" type="password" autocomplete="new-password"></div>
+      <div class="f" style="display:grid;gap:4px"><label for="np2">새 비밀번호 확인</label><input id="np2" type="password" autocomplete="new-password"></div>
+      <div class="hint" style="margin-top:6px">10자 이상, 영문과 숫자를 섞어 주세요.</div>
+      <div class="actions"><button class="btn pri" id="npSave" type="submit">변경</button>${forced?'<button class="btn" id="npOut" type="button">로그아웃</button>':'<button class="btn" id="npX" type="button">닫기</button>'}</div>
+      <div class="err" id="npErr"></div></form>`);
+  m.querySelector('#np1').focus();
+  if(m.querySelector('#npX'))m.querySelector('#npX').onclick=closeModal;
+  if(m.querySelector('#npOut'))m.querySelector('#npOut').onclick=()=>{closeModal();logout()};
+  m.querySelector('#npSave').onclick=async()=>{
+    const a=m.querySelector('#np1').value,b=m.querySelector('#np2').value,e=m.querySelector('#npErr');
+    if(!pwRule(a)){e.textContent='10자 이상, 영문과 숫자를 섞어 주세요.';return}
+    if(a!==b){e.textContent='두 비밀번호가 달라요.';return}
+    const {error}=await sb.auth.updateUser({password:a});
+    if(error){e.textContent=/same/i.test(error.message)?'지금 비밀번호와 다른 비밀번호를 쓰세요.':'변경하지 못했어요: '+error.message;return}
+    await sb.rpc('mark_pw_changed');me.must_change_pw=false;closeModal();toast('비밀번호를 바꿨어요');
+  };
+}
+
+/* ================= 계정 관리 (관리자) ================= */
+async function adminCall(body){
+  const {data,error}=await sb.functions.invoke('admin-users',{body});
+  if(error){let msg=error.message;try{const j=await error.context.json();msg=j.error||msg}catch(_){}throw new Error(msg)}
+  if(data&&data.error)throw new Error(data.error);return data;
+}
+function tempPw(){const c='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';const a=new Uint32Array(12);crypto.getRandomValues(a);
+  let s=[...a].map(x=>c[x%c.length]).join('');if(!/\d/.test(s))s=s.slice(0,11)+'7';if(!/[A-Za-z]/.test(s))s='k'+s.slice(1);return s}
+async function openAdmin(){
+  const m=modal(`<h2>계정 관리</h2>
+    <h3>새 계정</h3>
+    <form onsubmit="return false" class="g3" style="grid-template-columns:1fr 1fr 110px auto;gap:8px;align-items:end">
+      <div><label for="nu_id">아이디(사번 등)</label><input id="nu_id" autocapitalize="none" spellcheck="false"></div>
+      <div><label for="nu_nm">이름</label><input id="nu_nm"></div>
+      <div><label for="nu_role">권한</label><select id="nu_role"><option value="viewer">조회자</option><option value="editor">편집자</option><option value="admin">관리자</option></select></div>
+      <button class="btn pri" id="nu_go" type="submit">만들기</button>
+    </form>
+    <div class="err" id="nu_err"></div>
+    <h3>계정 목록</h3><div class="tbl" id="ulist">불러오는 중…</div>
+    <div class="actions"><button class="btn" id="adX">닫기</button></div>`);
+  m.querySelector('#adX').onclick=closeModal;
+  m.querySelector('#nu_go').onclick=async()=>{
+    const e=m.querySelector('#nu_err');e.textContent='';const pw=tempPw();
+    try{await adminCall({action:'create',login_id:m.querySelector('#nu_id').value.trim().toLowerCase(),name:m.querySelector('#nu_nm').value.trim(),role:m.querySelector('#nu_role').value,password:pw});
+      e.style.color='var(--ok)';e.textContent=`만들었어요. 임시 비밀번호: ${pw}  — 본인에게 직접 전달하세요. 첫 로그인 때 바꾸게 돼요.`;
+      m.querySelector('#nu_id').value='';m.querySelector('#nu_nm').value='';loadUsers(m)}
+    catch(x){e.style.color='';e.textContent=x.message}};
+  loadUsers(m);
+}
+async function loadUsers(m){
+  const box=m.querySelector('#ulist');
+  let users;try{users=(await adminCall({action:'list'})).users}catch(x){box.textContent='불러오지 못했어요: '+x.message;return}
+  box.innerHTML=`<table><thead><tr><th>아이디</th><th>이름</th><th>권한</th><th>상태</th><th>마지막 로그인</th><th></th></tr></thead><tbody>${users.map(u=>`<tr data-id="${esc(u.id)}">
+    <td>${esc(u.login_id)}</td><td>${esc(u.name)}</td>
+    <td><select data-act="role" ${u.id===me.id?'disabled':''}>${['viewer','editor','admin'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${{viewer:'조회자',editor:'편집자',admin:'관리자'}[r]}</option>`).join('')}</select></td>
+    <td>${u.active?'사용':'<span class="flag">중지</span>'}${u.must_change_pw?' <span class="hint">(임시 비번)</span>':''}</td>
+    <td class="hint">${u.last_login_at?esc(new Date(u.last_login_at).toLocaleString('ko-KR')):'—'}</td>
+    <td style="white-space:nowrap">${u.id===me.id?'<span class="hint">본인</span>':`<button class="btn" data-act="active">${u.active?'중지':'재사용'}</button> <button class="btn" data-act="reset">비번 초기화</button>`}</td></tr>`).join('')}</tbody></table>
+    <div class="err" id="ulErr"></div>`;
+  const err=box.querySelector('#ulErr');
+  box.querySelectorAll('tr[data-id]').forEach(tr=>{
+    const id=tr.dataset.id,u=users.find(x=>x.id===id);
+    tr.querySelector('[data-act="role"]').onchange=async e=>{try{await adminCall({action:'update',id,role:e.target.value});toast('권한을 바꿨어요')}catch(x){err.textContent=x.message;loadUsers(m)}};
+    const ab=tr.querySelector('[data-act="active"]');if(ab)ab.onclick=async()=>{try{await adminCall({action:'update',id,active:!u.active});loadUsers(m)}catch(x){err.textContent=x.message}};
+    const rb=tr.querySelector('[data-act="reset"]');if(rb)rb.onclick=async()=>{const pw=tempPw();try{await adminCall({action:'reset_password',id,password:pw});err.style.color='var(--ok)';err.textContent=`${u.login_id} 임시 비밀번호: ${pw}`}catch(x){err.style.color='';err.textContent=x.message}};
+  });
+}
+
+/* ================= CSV ================= */
+function exportCsv(){
+  if(!canEdit())return;
+  const head=['빌딩명','권역','시도','시군구','주소','연면적(㎡)','연면적(평)','지상층','지하층','준공','용도','소유주','관리회사','담당자','연락처','계약기간',...CATS.flatMap(([,l])=>[l+'인원',l+'협력사']),'총인원','위도','경도','확인'];
+  const rows=visible().map(b=>[b.name,ZNAME[b.zone]||'',b.region,b.district,b.address,b.gfa,b.gfa?Math.round(b.gfa/PY):'',b.floors_above,b.floors_below,b.completed,b.use_type,b.owner,b.fm?.company,b.fm?.manager,b.fm?.contact,b.fm?.period,
+    ...CATS.flatMap(([k])=>[b.staff?.[k]?.n||0,b.staff?.[k]?.company]),staffTotal(b),b.lat,b.lng,b.verified?'Y':'N']);
+  const cell=x=>{x=String(x??'');if(/^[=+\-@]/.test(x))x="'"+x;return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x};
+  const csv='\ufeff'+[head,...rows].map(r=>r.map(cell).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`빌딩정보_${ZNAME[zone]}_${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+</script>
+</body>
+</html>
