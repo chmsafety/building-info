@@ -48,6 +48,8 @@ header h1{font-size:16px;margin:0;font-weight:700;white-space:nowrap}
 .zones{display:flex;gap:6px;padding:8px 16px;background:var(--paper);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:thin}
 .zone{flex:none;padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--paper);font-size:13px;white-space:nowrap}
 .zone[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.zsep{flex:none;width:1px;background:var(--line);margin:4px 4px}
+.zlbl{flex:none;align-self:center;font-size:12px;color:var(--ink2);font-weight:600}
 .zone small{opacity:.7;margin-left:4px}
 main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 #map{min-height:0;height:100%;background:#dde6e7}
@@ -124,6 +126,18 @@ th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertic
 th{color:var(--ink2);font-weight:600;font-size:12px}
 td select{width:auto;padding:4px 6px}
 .tbl{overflow-x:auto}
+.fmbox{margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;gap:6px 10px;align-items:center;flex-wrap:wrap;font-size:13px}
+.fmbox.on{border-color:var(--hi)}
+.fmbox b{font-size:15px}.fmbox .btn{margin-left:auto;padding:5px 10px}
+.sug{border:1px solid var(--hi);border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13px;display:grid;gap:4px}
+.sug a,dd a{color:var(--pin)}
+.sug .t{font-size:11px;font-weight:600;color:var(--ink2)}
+.sug .co{font-size:15px;font-weight:700}
+.sug .ev{color:var(--ink2);font-size:12px;white-space:pre-wrap}
+.sug .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.sug .btn{padding:4px 10px;font-size:12px}
+.conf{font-size:11px;font-weight:500;padding:1px 7px;border-radius:99px;background:var(--chip);color:var(--ink2)}
+.conf.c상{background:var(--ok);color:var(--paper)}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;z-index:4000;font-size:13px}
 
 @media (max-width:860px){
@@ -165,6 +179,7 @@ td select{width:auto;padding:4px 6px}
       <div class="menu hidden" id="whoMenu" role="menu">
         <button role="menuitem" id="mPw">비밀번호 변경</button>
         <button role="menuitem" id="mAdmin" class="hidden">계정 관리</button>
+        <button role="menuitem" id="mImport" class="hidden">건축물대장 가져오기</button>
         <button role="menuitem" id="mCsv">CSV 내보내기</button>
         <button role="menuitem" id="mOut">로그아웃</button>
       </div>
@@ -230,6 +245,8 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 
 /* ================= 상태 ================= */
 let sb=null, me=null, buildings=[], names={}, zone='all', query='', onlyMissing=false;
+let minPy=0;   // 연면적 필터 (평): 0=전체
+let fmSug=[], fmRun=null;   // 관리사 자동 검색: 검토 대기 목록, 마지막 실행
 let mode='dash', selId=null, draft=null, placing=false, photoIdx=0, delArm=false;
 const signed=new Map(); // 사진 경로 → {url, exp}
 const canEdit=()=>me&&['admin','editor'].includes(me.role);
@@ -296,6 +313,7 @@ async function enterApp(){
   $('#whoName').textContent=me.name;
   const r=$('#whoRole');r.textContent={admin:'관리자',editor:'편집자',viewer:'조회자'}[me.role];r.className='role '+me.role;
   $('#mAdmin').classList.toggle('hidden',!isAdmin());
+  $('#mImport').classList.toggle('hidden',!isAdmin());
   $('#mCsv').classList.toggle('hidden',!canEdit());
   if(!mapInit){mapInit=true;initMap()}
   setTimeout(()=>map&&map.resize(),50);
@@ -309,6 +327,7 @@ async function loadAll(){
   if(error){toast('자료를 불러오지 못했어요: '+error.message);return}
   buildings=bs||[];names=Object.fromEntries((ps||[]).map(p=>[p.id,p.name]));
   for(const b of buildings)if(!b.zone)b.zone=autoZone(b.region,b.district);
+  await loadFmSug();
   renderZones();drawMarkers();renderPanel();
   firstFit();
   loadFacadesInView();if(v3open&&!v3link)send3D(null);
@@ -321,14 +340,20 @@ document.addEventListener('click',()=>$('#whoMenu').classList.add('hidden'));
 $('#mOut').onclick=()=>logout();
 $('#mPw').onclick=()=>openPwModal(false);
 $('#mAdmin').onclick=()=>openAdmin();
+$('#mImport').onclick=()=>openImport();
 $('#mCsv').onclick=exportCsv;
 
 /* ================= 권역 탭 ================= */
-function inZone(b){return zone==='all'||b.zone===zone}
+const SIZES=[[0,'전체'],[10000,'1만평↑'],[20000,'2만평↑'],[30000,'3만평↑']];
+const sizeOk=b=>!minPy||(+b.gfa||0)>=minPy*PY;
+function inZone(b){return (zone==='all'||b.zone===zone)&&sizeOk(b)}
 function renderZones(){
-  const cnt={};for(const b of buildings)cnt[b.zone]=(cnt[b.zone]||0)+1;
-  $('#zones').innerHTML=ZONES.map(z=>{const n=z.id==='all'?buildings.length:(cnt[z.id]||0);
-    return `<button class="zone" data-z="${z.id}" aria-pressed="${z.id===zone}">${esc(z.name)}<small>${n}</small></button>`}).join('');
+  const sb2=buildings.filter(sizeOk);const cnt={};for(const b of sb2)cnt[b.zone]=(cnt[b.zone]||0)+1;
+  $('#zones').innerHTML=ZONES.map(z=>{const n=z.id==='all'?sb2.length:(cnt[z.id]||0);
+    return `<button class="zone" data-z="${z.id}" aria-pressed="${z.id===zone}">${esc(z.name)}<small>${n}</small></button>`}).join('')
+    +`<span class="zsep" aria-hidden="true"></span><span class="zlbl">연면적</span>`
+    +SIZES.map(([v,l])=>`<button class="zone" data-sz="${v}" aria-pressed="${v===minPy}">${l}</button>`).join('');
+  $('#zones').querySelectorAll('[data-sz]').forEach(b=>b.onclick=()=>{minPy=+b.dataset.sz;renderZones();drawMarkers();if(mode==='dash')renderDash();fitZone()});
   $('#zones').querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{zone=b.dataset.z;mode='dash';selId=null;renderZones();drawMarkers();renderPanel();fitZone()});
 }
 
@@ -380,7 +405,7 @@ async function initMap(){
     map.on('mouseenter',id,()=>{if(!placing)map.getCanvas().style.cursor='pointer'});
     map.on('mouseleave',id,()=>{if(!placing)map.getCanvas().style.cursor=''});
   }
-  map.on('moveend',loadFacadesInView);
+  map.on('moveend',()=>{syncBoxes();loadFacadesInView()});
   addEventListener('keydown',e=>{if(e.key==='Escape'&&placing)setPlacing(false)});
 }
 const rad=g=>Math.max(6,Math.min(22,Math.sqrt((+g||0)/1500)));
@@ -465,8 +490,10 @@ function faceState(m,k){const p=m.faces[k]||m.faces[OPP[k]];const t=p&&facadeTex
 function syncBoxes(){
   if(!THREE_OK||!mapReady)return;
   const want=new Set();
+  if(map.getZoom()<BOX_MINZOOM-0.6){for(const [,o] of boxes)disposeScene(o.scene);boxes.clear();map.triggerRepaint();return}
+  const bb=map.getBounds(),pad=.004,inView=b=>b.lng>bb.getWest()-pad&&b.lng<bb.getEast()+pad&&b.lat>bb.getSouth()-pad&&b.lat<bb.getNorth()+pad;
   for(const b of visible()){
-    if(!hasPos(b))continue;want.add(b.id);
+    if(!hasPos(b)||!inView(b))continue;want.add(b.id);
     const m=box(b);const key=[m.w,m.d,m.h,m.az,m.floors,b.lat,b.lng,b.id===selId,...FACES.map(([k])=>faceState(m,k))].join('|');
     const o=boxes.get(b.id);if(o&&o.key===key)continue;
     if(o)disposeScene(o.scene);
@@ -589,6 +616,7 @@ function renderDash(){
       <div class="kpi"><b>${n0(st)}</b><span>관리 인력</span></div>
       <div class="kpi"><b>${zb.length?Math.round(withFM/zb.length*100):0}%</b><span>관리사 입력</span></div>
     </div>
+    ${fmBox(zb)}
     <h3>시설관리회사별 빌딩 수</h3>
     ${rows.length?`<div class="bars">${rows.map(([k,n])=>`<div class="barrow"><span class="nm" title="${esc(k==='__none'?'미입력':k)}">${k==='__none'?'<span class="flag">미입력</span>':esc(k)}</span><div class="bar"><i class="${k==='__none'?'none':''}" style="width:${n/mx*100}%"></i></div><span class="n">${n}</span></div>`).join('')}</div>`:'<div class="hint">빌딩이 없어요.</div>'}
     <h3>빌딩 목록</h3>
@@ -597,12 +625,13 @@ function renderDash(){
     <label class="keep" style="margin-top:8px"><input type="checkbox" id="miss" ${onlyMissing?'checked':''}> 관리사 미입력만</label>
     ${vis.length?`<ul class="list">${vis.map(b=>`<li><button data-id="${esc(b.id)}"><span class="nm">${esc(b.name)}</span>
       <span class="num">${fmtPy(b.gfa)}${staffTotal(b)?'<br><small>'+staffTotal(b)+'명</small>':''}</span>
-      <span class="sub">${esc(b.district||'')}${zone==='all'&&b.zone?' · '+esc(ZNAME[b.zone]||''):''} · ${hasFM(b)?esc(b.fm.company):'<span class="flag">관리사 미입력</span>'}</span></button></li>`).join('')}</ul>`
+      <span class="sub">${hasPos(b)?'':'<span class="flag">위치 없음</span> · '}${esc(b.district||'')}${zone==='all'&&b.zone?' · '+esc(ZNAME[b.zone]||''):''} · ${hasFM(b)?esc(b.fm.company):'<span class="flag">관리사 미입력</span>'}</span></button></li>`).join('')}</ul>`
       :`<div class="hint" style="padding:16px 0">${zb.length?'조건에 맞는 빌딩이 없어요.':'이 권역에 등록된 빌딩이 없어요.'}</div>`}
   </div>`;
   const qi=$('#q');qi.oninput=()=>{query=qi.value;const pos=qi.selectionStart;drawMarkers();renderDash();const n=$('#q');n.focus();n.setSelectionRange(pos,pos)};
   $('#miss').onchange=e=>{onlyMissing=e.target.checked;drawMarkers();renderDash()};
   if($('#add'))$('#add').onclick=()=>startEdit(null);
+  if($('#fmRev'))$('#fmRev').onclick=openFmReview;
   p.querySelectorAll('.list [data-id]').forEach(b=>b.onclick=()=>openDetail(b.dataset.id,true));
 }
 function openDetail(id,fly){
@@ -636,7 +665,8 @@ async function renderDetail(){
       <dt>준공</dt><dd>${esc(b.completed||'—')}</dd><dt>소유주</dt><dd>${esc(b.owner||'—')}</dd></dl>
     <h3>시설관리</h3>
     <dl><dt>관리회사</dt><dd>${hasFM(b)?esc(b.fm.company):'<span class="flag">미입력</span>'}</dd>
-      <dt>담당자</dt><dd>${esc(b.fm?.manager||'—')}</dd><dt>연락처</dt><dd>${esc(b.fm?.contact||'—')}</dd><dt>계약기간</dt><dd>${esc(b.fm?.period||'—')}</dd></dl>
+      <dt>담당자</dt><dd>${esc(b.fm?.manager||'—')}</dd><dt>연락처</dt><dd>${esc(b.fm?.contact||'—')}</dd><dt>계약기간</dt><dd>${esc(b.fm?.period||'—')}</dd>${b.fm?.source?`<dt>출처</dt><dd>${srcLink(b.fm.source)}${b.fm.checked_at?' <span class="hint">· '+esc(b.fm.checked_at)+' 반영</span>':''}</dd>`:''}</dl>
+    ${fmSug.filter(x=>x.building_id===b.id).map(x=>sugCard(x,false)).join('')}
     <h3>관리 인력 · 총 ${staffTotal(b)}명</h3>
     ${CATS.map(([k,l])=>{const s=b.staff?.[k]||{};const n=+s.n||0;return `<div class="srow"><span>${l}</span><div class="bar"><i style="width:${n/mx*100}%"></i></div><span class="n">${n}명</span>${s.company?`<span class="scomp">${esc(s.company)}</span>`:''}</div>`}).join('')}
     <h3>3D</h3>
@@ -651,6 +681,7 @@ async function renderDetail(){
   $('#back').onclick=()=>{mode='dash';selId=null;drawMarkers();renderDash()};
   if($('#edit'))$('#edit').onclick=()=>startEdit(b);
   $('#v3go').onclick=()=>open3D(b.id,null);
+  bindSug($('#panel'));
   if($('#v3lk'))$('#v3lk').onclick=()=>open3D(b.id,b.id);
   if($('#del'))$('#del').onclick=async()=>{if(!delArm){delArm=true;return renderDetail()}
     const {error}=await sb.from('buildings').delete().eq('id',b.id);
@@ -684,7 +715,7 @@ function collect(){
     completed:v('completed'),floors_above:num('fa'),floors_below:num('fb'),memo:v('memo'),lat:num('lat'),lng:num('lng'),verified:f.elements.verified.checked});
   draft.zoneAuto=v('zone')==='auto';draft.zone=draft.zoneAuto?autoZone(draft.region,draft.district):v('zone');
   const gm=num('gfa_m2');draft.gfa=gm;
-  draft.fm={company:v('fm_company'),manager:v('fm_manager'),contact:v('fm_contact'),period:v('fm_period')};
+  draft.fm=Object.assign({},draft.fm,{company:v('fm_company'),manager:v('fm_manager'),contact:v('fm_contact'),period:v('fm_period')});
   const st={};for(const [k] of CATS){const n=num('s_'+k)||0,c=v('c_'+k);if(n||c)st[k]={n,company:c}}draft.staff=st;
   const m3=draft.model3d;m3.w=num('m3_w');m3.d=num('m3_d');m3.h=num('m3_h');m3.az=+f.elements.m3_az.value;
 }
@@ -914,6 +945,125 @@ function warp(src,pts,W,H){
     o[oi+3]=255;
   }
   oc.putImageData(od,0,0);return out;
+}
+
+/* ================= 관리사 자동 검색 (검토 후 반영) ================= */
+async function loadFmSug(){
+  const [a,b]=await Promise.all([
+    sb.from('fm_suggestions').select('id,building_id,company,source_url,evidence,confidence,found_at').eq('status','pending').order('found_at',{ascending:false}),
+    sb.from('fm_runs').select('at,checked,found').order('at',{ascending:false}).limit(1)]);
+  fmSug=(!a.error&&a.data)?a.data.filter(x=>buildings.some(b=>b.id===x.building_id)):[];
+  fmRun=(!b.error&&b.data&&b.data[0])||null;
+}
+const safeUrl=u=>/^https?:\/\//i.test(String(u||''))?String(u):'';
+function srcLink(u){const s=safeUrl(u);if(!s)return esc(u||'');let h=s;try{h=new URL(s).hostname.replace(/^www\./,'')}catch(_){}
+  return `<a href="${esc(s)}" target="_blank" rel="noopener noreferrer">${esc(h)}</a>`}
+function fmBox(zb){
+  const ids=new Set(zb.map(b=>b.id));const n=fmSug.filter(x=>ids.has(x.building_id)).length;
+  const last=fmRun?`마지막 자동 검색 ${new Date(fmRun.at).toLocaleDateString('ko-KR')}${fmRun.checked!=null?' · '+fmRun.checked+'곳 확인':''}`:'자동 검색 기록이 아직 없어요 (매주 월요일 오전)';
+  return `<div class="fmbox ${n?'on':''}"><span>관리사 자동 검색 · 검토 대기 <b>${n}</b>건</span><span class="hint">${esc(last)}</span>${n?'<button class="btn" id="fmRev" type="button">검토하기</button>':''}</div>`;
+}
+function sugCard(x,withName){
+  const b=buildings.find(y=>y.id===x.building_id)||{};const cur=hasFM(b)?b.fm.company:'';
+  return `<div class="sug" data-sid="${x.id}">
+    <span class="t">자동 검색 결과${withName?' · '+esc(b.name||''):''} · ${esc(new Date(x.found_at).toLocaleDateString('ko-KR'))}</span>
+    <span class="co">${esc(x.company)} <span class="conf c${esc(x.confidence||'하')}">확실도 ${esc(x.confidence||'하')}</span></span>
+    <span class="hint">현재: ${cur?esc(cur):'미입력'}</span>
+    ${x.evidence?`<span class="ev">${esc(x.evidence)}</span>`:''}
+    ${x.source_url?`<span class="hint">출처: ${srcLink(x.source_url)}</span>`:''}
+    ${canEdit()?`<div class="row"><button class="btn pri" type="button" data-ok="${x.id}">반영</button><button class="btn" type="button" data-no="${x.id}">무시</button></div>`:''}
+  </div>`;
+}
+function bindSug(root,after){
+  root.querySelectorAll('[data-ok]').forEach(el=>el.onclick=()=>decideSug(+el.dataset.ok,true,after));
+  root.querySelectorAll('[data-no]').forEach(el=>el.onclick=()=>decideSug(+el.dataset.no,false,after));
+}
+async function decideSug(id,ok,after){
+  if(!canEdit())return;
+  const {error}=await sb.rpc(ok?'approve_fm_suggestion':'reject_fm_suggestion',{sid:id});
+  if(error){toast('처리하지 못했어요: '+error.message);return}
+  toast(ok?'관리회사를 반영했어요':'무시했어요');
+  await loadAll();if(after)after();
+}
+function openFmReview(){
+  const draw=()=>{
+    const list=fmSug.slice().sort((a,b)=>{const na=buildings.find(x=>x.id===a.building_id)?.name||'',nb=buildings.find(x=>x.id===b.building_id)?.name||'';return na.localeCompare(nb,'ko')});
+    const m=modal(`<h2>관리사 자동 검색 · 검토 대기 ${list.length}건</h2>
+      <p class="hint" style="margin:0">출처를 열어 확인한 뒤 <b>반영</b>을 누르면 빌딩의 관리회사가 바뀌고 변경 이력에 남아요. 틀린 결과는 <b>무시</b>하세요.</p>
+      <div id="sugList">${list.length?list.map(x=>sugCard(x,true)).join(''):'<p class="hint">검토할 결과가 없어요.</p>'}</div>
+      <div class="actions"><button class="btn" id="sugX" type="button">닫기</button></div>`);
+    m.querySelector('#sugX').onclick=closeModal;
+    bindSug(m,()=>{if(document.querySelector('#sugList'))draw()});
+  };
+  draw();
+}
+
+/* ================= 건축물대장(건축HUB) 가져오기 (관리자) ================= */
+async function importCall(body){
+  const {data,error}=await sb.functions.invoke('bldg-import',{body});
+  if(error){let msg=error.message;try{const j=await error.context.json();msg=j.error||msg}catch(_){}throw new Error(msg)}
+  if(data&&data.error)throw new Error(data.error);return data;
+}
+let impStop=false;
+function openImport(){
+  const m=modal(`<h2>건축물대장에서 오피스 빌딩 가져오기</h2>
+    <p class="hint" style="margin:0">국토교통부 건축HUB 건축물대장(표제부)에서 주용도가 <b>업무시설</b>인 건물을 필지 단위로 묶어, 연면적이 기준 이상이면 빌딩 목록에 등록해요. 이미 있는 빌딩(같은 주소·70m 이내)은 건너뛰어요. 좌표는 카카오 주소 검색으로 찾아요.</p>
+    <div class="g3" style="grid-template-columns:auto auto auto 1fr;gap:10px;align-items:end;margin-top:12px">
+      <label class="keep" style="margin:0"><input type="checkbox" id="im11" checked> 서울</label>
+      <label class="keep" style="margin:0"><input type="checkbox" id="im41" checked> 경기</label>
+      <label class="keep" style="margin:0"><input type="checkbox" id="im28" checked> 인천</label>
+      <div><label for="imMin">등록 기준 연면적</label><select id="imMin"><option value="10000" selected>1만평(33,058㎡) 이상</option><option value="20000">2만평 이상</option><option value="30000">3만평 이상</option></select></div>
+    </div>
+    <label class="keep"><input type="checkbox" id="imSkip" checked> 이미 끝낸 시군구는 건너뛰기</label>
+    <div class="actions"><button class="btn" id="imProbe" type="button">연결 확인</button><button class="btn pri" id="imGo" type="button">가져오기 시작</button><button class="btn" id="imStop" type="button" disabled>멈춤</button><button class="btn" id="imX" type="button">닫기</button></div>
+    <div class="hint" id="imSum" style="margin-top:10px"></div>
+    <div class="bar" style="margin-top:6px"><i id="imBar" style="width:0%"></i></div>
+    <div class="note" id="imLog" style="max-height:260px;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:11.5px">대기 중</div>`);
+  const log=t=>{const el=m.querySelector('#imLog');if(el.textContent==='대기 중')el.textContent='';el.textContent+=t+'\n';el.scrollTop=el.scrollHeight};
+  let running=false;
+  m.querySelector('#imX').onclick=()=>{if(running){impStop=true}closeModal();if(running)toast('가져오기를 멈췄어요. 다시 열어 이어서 할 수 있어요.')};
+  m.querySelector('#imStop').onclick=()=>{impStop=true;log('— 멈추는 중 (지금 처리 중인 구간까지 마무리)')};
+  m.querySelector('#imProbe').onclick=async()=>{
+    log('연결 확인 중…');
+    try{const r=await importCall({action:'probe'});
+      log(`✔ 연결됨 · 역삼동 건축물 ${r.total.toLocaleString()}건 중 ${r.got}건을 한 번에 받음`);
+      log(`  예시: ${[r.sample.이름,r.sample.주소,r.sample.주용도,r.sample.연면적&&Math.round(r.sample.연면적).toLocaleString()+'㎡'].filter(Boolean).join(' · ')}`);
+    }catch(e){log('✖ '+e.message)}
+  };
+  m.querySelector('#imGo').onclick=async()=>{
+    if(running)return;running=true;impStop=false;
+    const go=m.querySelector('#imGo'),st=m.querySelector('#imStop');go.disabled=true;st.disabled=false;
+    const regions=['11','41','28'].filter(r=>m.querySelector('#im'+r).checked);
+    const minArea=Math.round(+m.querySelector('#imMin').value*PY);const skip=m.querySelector('#imSkip').checked;
+    let tot={ins:0,found:0,dup:0,nogeo:0,calls:0},zero=[];
+    try{
+      const plan=(await importCall({action:'plan',regions})).list;
+      const todo=plan.filter(p=>!(skip&&p.last&&p.last.done));
+      log(`시군구 ${plan.length}곳 중 ${todo.length}곳을 처리해요.`);
+      const CH=12;let k=0;const steps=todo.reduce((a,p)=>a+Math.ceil(p.n/CH),0);
+      for(const p of todo){
+        let pIns=0,pFound=0,pScan=0;
+        for(let from=0;from<p.n;from+=CH){
+          if(impStop)break;
+          let r,tries=0;
+          while(true){try{r=await importCall({action:'run',sgg:p.sgg,from,to:Math.min(p.n,from+CH),minArea});break}
+            catch(e){if(++tries>=3||/한도|LIMITED|SERVICE_KEY|등록되지|관리자/.test(e.message))throw e;log(`  재시도 (${e.message})`);await new Promise(s=>setTimeout(s,3000))}}
+          pIns+=r.inserted;pFound+=r.found;pScan+=r.scanned;
+          tot.ins+=r.inserted;tot.found+=r.found;tot.dup+=r.dup;tot.nogeo+=r.noGeo;tot.calls+=r.calls;
+          if(r.geoErr&&!tot.geoWarn){tot.geoWarn=1;log(`  ⚠ 카카오 주소 검색 오류 ${r.geoErr} — 카카오 개발자 사이트에서 '카카오맵' 사용 설정을 켜 주세요. (좌표 없이 등록돼요)`)}
+          k++;m.querySelector('#imBar').style.width=(k/steps*100).toFixed(1)+'%';
+          m.querySelector('#imSum').textContent=`진행 ${k}/${steps} · 새로 등록 ${tot.ins} · 이미 있음 ${tot.dup} · 좌표 없음 ${tot.nogeo} · API 호출 ${tot.calls.toLocaleString()}`;
+        }
+        if(impStop)break;
+        if(!pScan)zero.push(p.name);
+        log(`${p.name}: 건축물 ${pScan.toLocaleString()}건 확인 · 기준 이상 ${pFound} · 새로 등록 ${pIns}`);
+      }
+      log(impStop?'— 멈췄어요. 다시 시작하면 끝난 시군구는 건너뛰어요.':'✔ 끝났어요.');
+      if(zero.length)log(`⚠ 결과가 0건인 곳: ${zero.join(', ')} — 행정구역이 바뀐 곳(부천·화성·인천 일부 등)은 코드 업데이트가 필요할 수 있어요.`);
+    }catch(e){log('✖ '+e.message+(/LIMITED|한도/.test(e.message)?' — 오늘 API 호출 한도를 다 썼어요. 내일 이어서 하세요.':''))}
+    running=false;go.disabled=false;st.disabled=true;
+    if(tot.ins){await loadAll();toast(`빌딩 ${tot.ins}곳을 새로 등록했어요`)}
+  };
 }
 
 /* ================= 비밀번호 변경 ================= */
