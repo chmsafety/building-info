@@ -1020,7 +1020,7 @@ function openImport(){
     <div class="bar" style="margin-top:6px"><i id="imBar" style="width:0%"></i></div>
     <div class="note" id="imLog" style="max-height:260px;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:11.5px">대기 중</div>`);
   const log=t=>{const el=m.querySelector('#imLog');if(el.textContent==='대기 중')el.textContent='';el.textContent+=t+'\n';el.scrollTop=el.scrollHeight};
-  let running=false;
+  let running=false;const keep=setInterval(()=>{if(running)lastAct=Date.now()},60000);
   m.querySelector('#imX').onclick=()=>{if(running){impStop=true}closeModal();if(running)toast('가져오기를 멈췄어요. 다시 열어 이어서 할 수 있어요.')};
   m.querySelector('#imStop').onclick=()=>{impStop=true;log('— 멈추는 중 (지금 처리 중인 구간까지 마무리)')};
   m.querySelector('#imProbe').onclick=async()=>{
@@ -1040,14 +1040,14 @@ function openImport(){
       const plan=(await importCall({action:'plan',regions})).list;
       const todo=plan.filter(p=>!(skip&&p.last&&p.last.done));
       log(`시군구 ${plan.length}곳 중 ${todo.length}곳을 처리해요.`);
-      const CH=12;let k=0;const steps=todo.reduce((a,p)=>a+Math.ceil(p.n/CH),0);
+      const CH=2;let k=0;const steps=todo.reduce((a,p)=>a+Math.ceil(p.n/CH),0);
       for(const p of todo){
         let pIns=0,pFound=0,pScan=0;
         for(let from=0;from<p.n;from+=CH){
           if(impStop)break;
           let r,tries=0;
-          while(true){try{r=await importCall({action:'run',sgg:p.sgg,from,to:Math.min(p.n,from+CH),minArea});break}
-            catch(e){if(++tries>=3||/한도|LIMITED|SERVICE_KEY|등록되지|관리자/.test(e.message))throw e;log(`  재시도 (${e.message})`);await new Promise(s=>setTimeout(s,3000))}}
+          while(true){try{r=await importCall({action:'run',sgg:p.sgg,from,to:Math.min(p.n,from+CH),minArea,rows:100});break}
+            catch(e){if(++tries>=3||/한도|LIMITED|SERVICE_KEY|서비스키|초과|등록되지|관리자/.test(e.message))throw e;log(`  재시도 (${e.message})`);await new Promise(s=>setTimeout(s,3000))}}
           pIns+=r.inserted;pFound+=r.found;pScan+=r.scanned;
           tot.ins+=r.inserted;tot.found+=r.found;tot.dup+=r.dup;tot.nogeo+=r.noGeo;tot.calls+=r.calls;
           if(r.geoErr&&!tot.geoWarn){tot.geoWarn=1;log(`  ⚠ 카카오 주소 검색 오류 ${r.geoErr} — 카카오 개발자 사이트에서 '카카오맵' 사용 설정을 켜 주세요. (좌표 없이 등록돼요)`)}
