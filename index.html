@@ -1311,7 +1311,7 @@ async function importCall(body){
 let impStop=false;
 function openImport(){
   const m=modal(`<h2>건축물대장에서 빌딩 가져오기</h2>
-    <p class="hint" style="margin:0">국토교통부 건축HUB 건축물대장(표제부)에서 주용도가 <b>업무시설</b> 또는 <b>방송통신시설</b>(방송국·언론사 사옥 등)인 건물을 필지 단위로 묶어, 연면적이 기준 이상이면 빌딩 목록에 등록해요. 이미 있는 빌딩(같은 주소·70m 이내)은 건너뛰어요. 좌표는 카카오 주소 검색으로 찾아요.</p>
+    <p class="hint" style="margin:0">국토교통부 건축HUB 건축물대장(표제부)에서 주용도가 <b>업무시설</b> 또는 <b>방송통신시설</b>(방송국·언론사 사옥 등)인 건물을 필지 단위로 묶어, 연면적이 기준 이상이면 빌딩 목록에 등록해요. 이미 있는 빌딩은 건너뛰어요 — 주소가 같거나, 30m 이내이거나, 70m 이내이면서 이름이 비슷한 경우. 70m 이내라도 이름이 다르면 등록하고 로그에 ‘가까움’으로 알려 줘요. 좌표는 카카오 주소 검색으로 찾아요.</p>
     <div class="g3" style="grid-template-columns:auto auto auto 1fr;gap:10px;align-items:end;margin-top:12px">
       <label class="keep" style="margin:0"><input type="checkbox" id="im11" checked> 서울</label>
       <label class="keep" style="margin:0"><input type="checkbox" id="im41" checked> 경기</label>
@@ -1344,7 +1344,7 @@ function openImport(){
     const go=m.querySelector('#imGo'),st=m.querySelector('#imStop');go.disabled=true;st.disabled=false;
     const regions=['11','41','28'].filter(r=>m.querySelector('#im'+r).checked);const kind=kindSel.value;
     const minArea=Math.round(+m.querySelector('#imMin').value*PY);const skip=m.querySelector('#imSkip').checked;
-    let tot={ins:0,found:0,dup:0,nogeo:0,calls:0,flag:0},zero=[];
+    let tot={ins:0,found:0,dup:0,nogeo:0,calls:0,flag:0},zero=[],nearAll=[],oddAll=[];
     try{
       const plan=(await importCall({action:'plan',regions,mode:kind})).list;
       const todo=plan.filter(p=>!(skip&&p.last&&p.last.done));
@@ -1360,6 +1360,8 @@ function openImport(){
           pIns+=r.inserted;pFound+=r.found;pScan+=r.scanned;
           tot.ins+=r.inserted;tot.flag+=r.flagged||0;tot.found+=r.found;tot.dup+=r.dup;tot.nogeo+=r.noGeo;tot.calls+=r.calls;
           if(r.added&&r.added.length)log(`  + ${r.added.join(', ')}`);
+          for(const x of r.skipped||[]){log(`  − 건너뜀: ${x.name} ↔ 기존 ‘${x.by}’${x.m!=null?' '+x.m+'m':''} (${x.why})`);if(x.m==null)oddAll.push(x)}
+          for(const x of r.near||[]){log(`  ! 가까움: ${x.name} — 기존 ‘${x.by}’와 ${x.m}m, 이름이 달라 등록했어요`);nearAll.push(x)}
           if(r.geoErr&&!tot.geoWarn){tot.geoWarn=1;log(`  ⚠ 카카오 주소 검색 오류 ${r.geoErr} — 카카오 개발자 사이트에서 '카카오맵' 사용 설정을 켜 주세요. (좌표 없이 등록돼요)`)}
           k++;m.querySelector('#imBar').style.width=(k/steps*100).toFixed(1)+'%';
           m.querySelector('#imSum').textContent=`진행 ${k}/${steps} · 새로 등록 ${tot.ins}${kind==='public'?' · 공공 표시 '+tot.flag:''} · 이미 있음 ${tot.dup} · 좌표 없음 ${tot.nogeo} · API 호출 ${tot.calls.toLocaleString()}`;
@@ -1369,6 +1371,8 @@ function openImport(){
         log(`${p.name}: 건축물 ${pScan.toLocaleString()}건 확인 · 기준 이상 ${pFound} · 새로 등록 ${pIns}`);
       }
       log(impStop?'— 멈췄어요. 다시 시작하면 끝난 시군구는 건너뛰어요.':'✔ 끝났어요.');
+      if(nearAll.length)log(`⚠ 가까운 기존 빌딩과 이름이 달라 등록한 곳 ${nearAll.length}곳 — 같은 빌딩이면 하나를 지우세요: ${nearAll.map(x=>x.name+'↔'+x.by).join(', ')}`);
+      if(oddAll.length)log(`⚠ 주소는 같은데 이름이 다른 곳 ${oddAll.length}곳 — 기존 빌딩 주소가 틀렸을 수 있어요: ${oddAll.map(x=>x.name+'↔'+x.by).join(', ')}`);
       if(zero.length)log(`⚠ 결과가 0건인 곳: ${zero.join(', ')} — 행정구역이 바뀐 곳(부천·화성·인천 일부 등)은 코드 업데이트가 필요할 수 있어요.`);
     }catch(e){log('✖ '+e.message+(/LIMITED|한도/.test(e.message)?' — 오늘 API 호출 한도를 다 썼어요. 내일 이어서 하세요.':''))}
     running=false;go.disabled=false;st.disabled=true;
