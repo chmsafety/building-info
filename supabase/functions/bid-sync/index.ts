@@ -3,6 +3,7 @@
 // 공공데이터포털에서 활용신청 필요: '조달청_나라장터 입찰공고정보서비스', '조달청_나라장터 낙찰정보서비스'
 // 동작(POST JSON): probe / run {day, fmOnly} / winners / daily(자동)
 // 2026-09-21: ① 발주기관(수요기관) 이름으로도 연결  ② 낙찰자를 '관리사 검토 대기'로 자동 등록
+// 2026-09-21(2): ③ 빌딩명 꼬리말(빌딩·타워·사옥 등)을 뗀 약칭으로도 연결  ④ 수요기관 자체집행 공고까지 조회
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 function envKey(legacy: string, modern: string): string {
@@ -22,7 +23,8 @@ const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: 
 
 let KEY = Deno.env.get("G2B_API_KEY") || Deno.env.get("BLD_API_KEY") || "";
 if (KEY.includes("%")) { try { KEY = decodeURIComponent(KEY); } catch { /* keep */ } }
-const BID_API = "apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServcPPSSrch";
+const BID_API = "apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServcPPSSrch";   // 나라장터 검색조건(조달청 집행 위주)
+const BID_API_ALL = "apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServc";       // 용역 공고 전체(수요기관 자체집행 포함)
 const WIN_API = "apis.data.go.kr/1230000/as/ScsbidInfoService/getScsbidListSttusServc";
 let calls = 0;
 
@@ -35,14 +37,22 @@ const isFm = (title: string) => { const t = norm(title); return FM_WORDS.some((w
 
 // 빌딩 이름 → 공고명에서 찾을 검색어. 주소처럼 생긴 이름·너무 짧거나 흔한 이름은 빼고, 직접 넣은 검색어는 그대로.
 const GENERIC = new Set(["빌딩", "타워", "센터", "사옥", "본관", "별관", "청사", "본사", "오피스", "플라자", "스퀘어", "타워a", "타워b"]);
-function keywordsOf(b: any): string[] {
-  const out = new Set<string>();
+// 빌딩명 꼬리말: '연합뉴스빌딩' → '연합뉴스' 처럼 떼어 낸 약칭으로도 찾는다(4글자 이상일 때만).
+const TAIL = /(빌딩|타워|센터|사옥|본사|본관|별관|청사|오피스|플라자|스퀘어|파크|하우스|시티)$/;
+function keywordsOf(b: any): { k: string; tag: string }[] {
+  const out = new Map<string, string>();
+  const add = (k: string, tag: string) => { if (k && !out.has(k)) out.set(k, tag); };
   const nm = String(b.name ?? "").replace(/\(.*?\)/g, " ").trim();
   const looksAddr = /\d+\s*(길|로|번지)|(로|길)\s*\d+|^\S+(동|가)\s*\d/.test(nm);
   const k = norm(nm);
-  if (!looksAddr && k.length >= 3 && !GENERIC.has(k)) out.add(k);
-  for (const x of String(b.bid_keywords ?? "").split(/[,\n;]/)) { const y = norm(x); if (y.length >= 2) out.add(y); }
-  return [...out];
+  if (!looksAddr && k.length >= 3 && !GENERIC.has(k)) {
+    add(k, "");
+    let stem = k;
+    for (let i = 0; i < 3 && TAIL.test(stem); i++) stem = stem.replace(TAIL, "");
+    if (stem !== k && stem.length >= 4 && !GENERIC.has(stem)) add(stem, "약칭:");
+  }
+  for (const x of String(b.bid_keywords ?? "").split(/[,\n;]/)) { const y = norm(x); if (y.length >= 2) add(y, ""); }
+  return [...out].map(([k2, tag]) => ({ k: k2, tag }));
 }
 // 발주기관 이름: 빌딩별로 직접 넣은 '발주기관명'(bid_orgs) + 공공건물은 빌딩명·소유주가 기관명과 같을 때
 const SITE = /청사|사옥|본사|본부|본원|회관|센터|타워|빌딩|별관|본관|건물/;
@@ -94,20 +104,30 @@ async function call(host: string, params: Record<string, string>) {
   if (!Array.isArray(items)) items = items ? [items] : [];
   return { total: +body.totalCount || 0, items };
 }
-async function dayNotices(day: string) {   // 하루치 용역 공고 전부
+async function listFrom(host: string, day: string) {
   const rows = 500, out: any[] = [];
   for (let p = 1; p <= 20; p++) {
-    const r = await call(BID_API, { inqryDiv: "1", inqryBgnDt: day + "0000", inqryEndDt: day + "2359", pageNo: String(p), numOfRows: String(rows) });
+    const r = await call(host, { inqryDiv: "1", inqryBgnDt: day + "0000", inqryEndDt: day + "2359", pageNo: String(p), numOfRows: String(rows) });
     out.push(...r.items);
     if (p * rows >= r.total || !r.items.length) break;
   }
   return out;
 }
+// 하루치 용역 공고 전부 — 두 창구를 모두 읽어 공고번호·차수로 합침(자체집행 공고 누락 방지)
+async function dayNotices(day: string) {
+  const seen = new Map<string, any>();
+  const put = (arr: any[]) => { for (const it of arr) { const k = String(it.bidNtceNo ?? "") + "|" + String(it.bidNtceOrd ?? ""); if (!seen.has(k)) seen.set(k, it); } };
+  put(await listFrom(BID_API, day));
+  const n1 = seen.size;
+  let note: string | null = null;
+  try { put(await listFrom(BID_API_ALL, day)); } catch (e) { note = "전체 목록 조회 실패: " + (e as Error).message.slice(0, 120); }
+  return { items: [...seen.values()], n1, n2: seen.size - n1, note };
+}
 
 async function syncDay(db: any, day: string, fmOnly: boolean, mode: string) {
   const blds = await loadBuildings(db);
   const kw = blds.map((b: any) => ({ b, id: b.id, ks: keywordsOf(b) }));
-  const items = await dayNotices(day);
+  const { items, n1, n2, note } = await dayNotices(day);
   const found = new Map<string, { it: any; links: { id: string; k: string }[] }>();
   for (const it of items) {
     const title = String(it.bidNtceNm ?? "");
@@ -115,7 +135,8 @@ async function syncDay(db: any, day: string, fmOnly: boolean, mode: string) {
     const t = norm(title);
     const links: { id: string; k: string }[] = [];
     for (const x of kw) {
-      const k = x.ks.find((y: string) => t.includes(y)) ?? orgMatch(x.b, it, title);
+      const hit = x.ks.find((y: any) => t.includes(y.k));
+      const k = hit ? hit.tag + hit.k : orgMatch(x.b, it, title);
       if (k) links.push({ id: x.id, k });
     }
     if (!links.length) continue;
@@ -145,8 +166,8 @@ async function syncDay(db: any, day: string, fmOnly: boolean, mode: string) {
     for (const [no, { links }] of found) for (const l of links) if (!have.has(no + "|" + l.id)) lrows.push({ bid_no: no, building_id: l.id, keyword: l.k });
     if (lrows.length) { const { error } = await db.from("bid_links").insert(lrows); if (error) throw new Error("연결 저장 오류: " + error.message); newLinks = lrows.length; }
   }
-  await db.from("bid_runs").insert({ mode, day, scanned: items.length, matched: found.size, new_links: newLinks, calls });
-  return { day, scanned: items.length, matched: found.size, newLinks, keywords: kw.filter((x: any) => x.ks.length).length };
+  await db.from("bid_runs").insert({ mode, day, scanned: items.length, matched: found.size, new_links: newLinks, calls, note });
+  return { day, scanned: items.length, extra: n2, matched: found.size, newLinks, note, keywords: kw.filter((x: any) => x.ks.length).length };
 }
 
 // 공고명으로 어떤 역할의 계약인지 추정 → 관리사 검토 대기의 역할 표기
