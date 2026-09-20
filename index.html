@@ -73,12 +73,18 @@ main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 .lg{width:12px;height:12px;border-radius:3px;display:inline-block;border:2px solid #0E5E66}
 .lg.on{background:#0E8A94}.lg.off{background:#fff;border-color:#E0662A}
 .lg.bid{border-radius:50%;border-color:#D92D20;background:rgba(217,45,32,.25)}
+.lg.bidend{border-radius:50%;border-color:#98A2B3;background:rgba(152,162,179,.3)}
 /* 나라장터 입찰 진행 중인 빌딩: 지도 위 깜빡이는 표시 */
 .bidpin{position:relative;width:18px;height:18px;cursor:pointer;border:0;padding:0;background:none}
 .bidpin i{position:absolute;inset:0;border-radius:50%;background:#D92D20;border:2px solid #fff;box-shadow:0 0 0 1px #D92D20}
 .bidpin::before,.bidpin::after{content:"";position:absolute;inset:-2px;border-radius:50%;border:3px solid #D92D20;animation:bidping 1.6s ease-out infinite;pointer-events:none}
 .bidpin::after{animation-delay:.8s}
 .bidpin b{position:absolute;z-index:2;left:50%;bottom:calc(100% + 12px);box-shadow:0 1px 4px rgba(0,0,0,.25);transform:translateX(-50%);background:#D92D20;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:99px;white-space:nowrap;animation:bidblink 1.2s steps(2,start) infinite}
+/* 이미 끝난 입찰: 깜빡이지 않는 회색 표시 */
+.bidpin.done{width:14px;height:14px}
+.bidpin.done i{background:#98A2B3;box-shadow:0 0 0 1px #98A2B3}
+.bidpin.done::before,.bidpin.done::after{display:none}
+.bidpin.done b{background:#667085;animation:none;bottom:calc(100% + 8px);font-weight:600}
 @keyframes bidping{0%{transform:scale(1);opacity:.9}100%{transform:scale(3.4);opacity:0}}
 @keyframes bidblink{50%{opacity:.35}}
 @media (prefers-reduced-motion:reduce){.bidpin::before,.bidpin::after,.bidpin b{animation:none}.bidpin::before{transform:scale(1.8);opacity:.5}}
@@ -108,7 +114,7 @@ main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 .bidbox.on{border-color:#D92D20}
 .bidbox .hd{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .bidbox .hd b{font-size:14px}.bidbox .hd .btn{margin-left:auto;padding:4px 10px;font-size:12px}
-.bidk{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.bidk{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
 .bidk button{border:0;background:var(--bg);border-radius:8px;padding:6px 8px;text-align:left}
 .bidk button[aria-pressed="true"]{outline:2px solid #D92D20}
 .bidk b{display:block;font-size:17px;font-variant-numeric:tabular-nums}.bidk span{font-size:11px;color:var(--ink2)}
@@ -242,6 +248,7 @@ td select{width:auto;padding:4px 6px}
   .zrow{gap:5px}
   .zone{padding:5px 10px;font-size:12.5px}
   .zlbl{width:auto;font-size:11px;margin-right:2px}
+  .bidk{grid-template-columns:repeat(2,1fr)}
 }
 </style>
 </head>
@@ -286,7 +293,7 @@ td select{width:auto;padding:4px 6px}
     <div style="position:relative;min-height:0">
       <div id="map" aria-label="지도"></div>
       <button class="btn map3d" id="v3open" type="button">실사 3D</button>
-      <div class="maplegend" id="legend" aria-label="범례"><span><i class="lg on"></i>관리사 입력</span><span><i class="lg off"></i>미입력</span><span><i class="lg bid"></i>입찰 진행</span></div>
+      <div class="maplegend" id="legend" aria-label="범례"><span><i class="lg on"></i>관리사 입력</span><span><i class="lg off"></i>미입력</span><span><i class="lg bid"></i>입찰 진행</span><span><i class="lg bidend"></i>입찰 마감</span></div>
       <div class="banner hidden" id="banner" style="z-index:10">지도에서 빌딩 위치를 누르세요 · Esc 로 취소</div>
       <div class="v3 hidden" id="v3wrap"><iframe id="v3" title="실사 3D 지도"></iframe>
         <div class="v3bar"><button class="btn" id="v3close" type="button">← 지도로 돌아가기</button><span id="v3msg"></span></div></div>
@@ -367,7 +374,7 @@ let sb=null, me=null, buildings=[], names={}, zone='all', query='', onlyMissing=
 let minPy=0;   // 연면적 필터 (평): 0=전체
 let pubF='all';   // 구분 필터: all / pub(공공) / priv(민간)
 let fmSug=[], fmRun=null;   // 관리사 자동 검색: 검토 대기 목록, 마지막 실행
-let bidLinks=[], bidRun=null, bidOnly=false, bidTab='open';   // 나라장터 입찰: 빌딩과 연결된 공고, 마지막 확인
+let bidLinks=[], bidRun=null, bidOnly=false, bidAny=false, bidTab='open';   // 나라장터 입찰: 빌딩과 연결된 공고, 마지막 확인
 let sales={}, salesOK=true, people=[], stageF='all', colorMode='fm', myOnly=false;   // 영업 파이프라인
 let mode='dash', selId=null, draft=null, placing=false, photoIdx=0, delArm=false;
 let phTab=null;   // 상세화면 위쪽: 'photo'(등록 사진) | 'rv'(카카오 로드뷰) · null=자동(사진 없으면 로드뷰)
@@ -560,13 +567,13 @@ function renderLegend(){
   el.innerHTML=(colorMode==='sales'
     ?STAGES.map(([k,l,c])=>`<span><i class="lg" style="background:${c};border-color:${c}"></i>${esc(l)}</span>`).join('')+'<span><i class="lg off" style="border-color:#98A2B3"></i>미지정</span>'
     :'<span><i class="lg on"></i>관리사 입력</span><span><i class="lg off"></i>미입력</span>')
-    +'<span><i class="lg bid"></i>입찰 진행</span>'
+    +'<span><i class="lg bid"></i>입찰 진행</span><span><i class="lg bidend"></i>입찰 마감</span>'
     +`<button type="button" class="legbtn" id="legSw">색 기준: ${colorMode==='sales'?'영업 단계':'관리사'} ⇄</button>`;
   const sw=$('#legSw');if(sw)sw.onclick=()=>{colorMode=colorMode==='sales'?'fm':'sales';drawMarkers()};
 }
 function visible(){
   const q=query.trim().toLowerCase();
-  return buildings.filter(b=>inZone(b)&&(!onlyMissing||!hasFM(b))&&(!bidOnly||bidOpenOf(b.id).length)&&(stageF==='all'||stageOf(b)===stageF)&&(!myOnly||sales[b.id]?.owner_id===me?.id)&&(!q||[b.name,b.address,b.district,b.fm?.company,...CATS.map(([k])=>b.staff?.[k]?.company)].some(x=>String(x||'').toLowerCase().includes(q))));
+  return buildings.filter(b=>inZone(b)&&(!onlyMissing||!hasFM(b))&&(!bidOnly||bidOpenOf(b.id).length)&&(!bidAny||bidAnyOf(b.id).length)&&(stageF==='all'||stageOf(b)===stageF)&&(!myOnly||sales[b.id]?.owner_id===me?.id)&&(!q||[b.name,b.address,b.district,b.fm?.company,...CATS.map(([k])=>b.staff?.[k]?.company)].some(x=>String(x||'').toLowerCase().includes(q))));
 }
 const hasPos=b=>b&&b.lat!=null&&b.lng!=null&&isFinite(b.lat)&&isFinite(b.lng);
 function drawMarkers(){
@@ -788,12 +795,14 @@ function renderDash(){
       ${canEdit()?'<button class="btn pri" id="add">빌딩 추가</button>':''}</div>
     <div style="display:flex;gap:16px;flex-wrap:wrap"><label class="keep" style="margin-top:8px"><input type="checkbox" id="miss" ${onlyMissing?'checked':''}> 관리사 미입력만</label>
     <label class="keep" style="margin-top:8px"><input type="checkbox" id="bidonly" ${bidOnly?'checked':''}> 입찰 진행 중인 빌딩만</label>
+    <label class="keep" style="margin-top:8px"><input type="checkbox" id="bidany" ${bidAny?'checked':''}> 입찰 이력 있는 빌딩만</label>
     <label class="keep" style="margin-top:8px"><input type="checkbox" id="myonly" ${myOnly?'checked':''}> 내 담당만</label></div>
     <div id="blist">${listHtml(vis,zb)}</div>
   </div>`;
   const qi=$('#q');qi.oninput=()=>{query=qi.value;drawMarkers();refreshList()};   // 입력칸은 다시 그리지 않음 (한글 조합이 끊기지 않게)
   $('#miss').onchange=e=>{onlyMissing=e.target.checked;drawMarkers();renderDash()};
   $('#bidonly').onchange=e=>{bidOnly=e.target.checked;drawMarkers();renderDash();if(bidOnly)fitZone()};
+  $('#bidany').onchange=e=>{bidAny=e.target.checked;drawMarkers();renderDash();if(bidAny)fitZone()};
   $('#myonly').onchange=e=>{myOnly=e.target.checked;drawMarkers();renderDash();if(myOnly)fitZone()};
   bindBidBox(p);bindSalesBox(p);
   if($('#add'))$('#add').onclick=()=>startEdit(null);
@@ -801,14 +810,14 @@ function renderDash(){
   p.querySelectorAll('.cos [data-co]').forEach(el=>el.onclick=()=>{const c=el.dataset.co;if(c){query=query===c?'':c;onlyMissing=false}else{query='';onlyMissing=!onlyMissing}drawMarkers();renderDash();const l=p.querySelector('#blist');if(l)l.scrollIntoView({behavior:'smooth',block:'start'})});
   bindList(p);
 }
-function filtChip(n){if(!query&&!onlyMissing&&!bidOnly&&stageF==='all'&&!myOnly)return '';const t=[query?`‘${esc(query)}’`:'',onlyMissing?'관리사 미입력':'',bidOnly?'입찰 진행 중':'',stageF!=='all'?(stageF==='none'?'영업 단계 미지정':'영업 '+esc(SLBL[stageF])):'',myOnly?'내 담당':''].filter(Boolean).join(' · ');
+function filtChip(n){if(!query&&!onlyMissing&&!bidOnly&&!bidAny&&stageF==='all'&&!myOnly)return '';const t=[query?`‘${esc(query)}’`:'',onlyMissing?'관리사 미입력':'',bidOnly?'입찰 진행 중':'',bidAny?'입찰 이력 있음':'',stageF!=='all'?(stageF==='none'?'영업 단계 미지정':'영업 '+esc(SLBL[stageF])):'',myOnly?'내 담당':''].filter(Boolean).join(' · ');
   return `<div class="filt"><span>${t} 빌딩만 보는 중 · ${n}곳</span><button type="button" class="btn" data-clr>✕ 전체 보기</button></div>`}
-function listHtml(vis,zb){return filtChip(vis.length)+(vis.length?`<ul class="list">${vis.map(b=>`<li><button data-id="${esc(b.id)}"><span class="nm">${esc(b.name)}${stageTag(b)}${b.is_public?'<span class="pubtag">공공</span>':''}${bidOpenOf(b.id).length?' <span class="dday">입찰 '+bidOpenOf(b.id).length+'</span>':''}</span>
+function listHtml(vis,zb){return filtChip(vis.length)+(vis.length?`<ul class="list">${vis.map(b=>`<li><button data-id="${esc(b.id)}"><span class="nm">${esc(b.name)}${stageTag(b)}${b.is_public?'<span class="pubtag">공공</span>':''}${bidOpenOf(b.id).length?' <span class="dday">입찰 '+bidOpenOf(b.id).length+'</span>':(bidDoneOf(b.id).length?' <span class="dday end">입찰 마감 '+bidDoneOf(b.id).length+'</span>':'')}</span>
       <span class="num">${fmtPy(b.gfa)}${staffTotal(b)?'<br><small>'+staffTotal(b)+'명</small>':''}</span>
       <span class="sub">${hasPos(b)?'':'<span class="flag">위치 없음</span> · '}${esc(b.district||'')}${zone==='all'&&b.zone?' · '+esc(ZNAME[b.zone]||''):''} · ${hasFM(b)?mgmtCos(b).map(o=>esc(o.name)+'<small>('+esc(roleTxt(o.roles))+')</small>').join(', '):'<span class="flag">관리사 미입력</span>'}</span></button></li>`).join('')}</ul>`
       :`<div class="hint" style="padding:16px 0">${zb.length?'조건에 맞는 빌딩이 없어요.':'이 권역에 등록된 빌딩이 없어요.'}</div>`)}
 function bindList(root){root.querySelectorAll('.list [data-id]').forEach(b=>b.onclick=()=>openDetail(b.dataset.id,true));
-  root.querySelectorAll('[data-clr]').forEach(b=>b.onclick=()=>{query='';onlyMissing=false;bidOnly=false;stageF='all';myOnly=false;drawMarkers();renderDash();fitZone()})}
+  root.querySelectorAll('[data-clr]').forEach(b=>b.onclick=()=>{query='';onlyMissing=false;bidOnly=false;bidAny=false;stageF='all';myOnly=false;drawMarkers();renderDash();fitZone()})}
 function refreshList(){const el=$('#blist');if(!el)return renderDash();el.innerHTML=listHtml(visible(),buildings.filter(inZone));bindList(el)}
 function openDetail(id,fly){
   selId=id;mode='detail';photoIdx=0;delArm=false;phTab=null;setPlacing(false);drawMarkers();renderDetail();$('#panel').scrollTop=0;
@@ -1210,6 +1219,11 @@ const bidEnd=x=>x.bids.close_at||x.bids.open_at;   // 마감일시가 없는 공
 const bidIsOpen=x=>!bidCanceled(x)&&bidEnd(x)&&new Date(bidEnd(x))>new Date();
 const bidIsNew=x=>x.bids.notice_at&&Date.now()-new Date(x.bids.notice_at)<7*DAY;
 const bidOpenOf=id=>bidLinks.filter(x=>x.building_id===id&&!x.hidden&&bidIsOpen(x));
+/* 끝난 입찰: 취소가 아니고 마감(또는 개찰)이 지난 공고. 지도·목록에는 최근 90일 것만 표시 */
+const bidDone=x=>!bidCanceled(x)&&!bidIsOpen(x)&&!!bidEnd(x);
+const bidRecent=x=>bidDone(x)&&Date.now()-new Date(bidEnd(x))<90*DAY;
+const bidDoneOf=id=>bidLinks.filter(x=>x.building_id===id&&!x.hidden&&bidRecent(x));
+const bidAnyOf=id=>bidLinks.filter(x=>x.building_id===id&&!x.hidden);
 const fmtWon=v=>{v=+v;if(!v)return '';return v>=1e8?(v/1e8).toFixed(v>=1e9?0:1)+'억원':Math.round(v/1e4).toLocaleString('ko-KR')+'만원'};
 const fmtDt=t=>t?new Date(t).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
 function bidBadge(x){
@@ -1243,30 +1257,33 @@ const bidSort=(a,b)=>{const oa=bidIsOpen(a),ob=bidIsOpen(b);if(oa!==ob)return oa
   return oa?new Date(bidEnd(a))-new Date(bidEnd(b)):new Date(b.bids.notice_at||0)-new Date(a.bids.notice_at||0)};
 function bidBox(zb){
   const ids=new Set(zb.map(b=>b.id));const L=bidLinks.filter(x=>ids.has(x.building_id)&&!x.hidden);
-  const open=L.filter(bidIsOpen),nw=L.filter(bidIsNew),won=L.filter(x=>x.bids.winner);
+  const open=L.filter(bidIsOpen),nw=L.filter(bidIsNew),won=L.filter(x=>x.bids.winner),done=L.filter(bidRecent);
   const nb=new Set(open.map(x=>x.building_id)).size;
   const last=bidRun?`마지막 확인 ${new Date(bidRun.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}${bidRun.mode==='daily'?' (자동)':''}`:'아직 확인 기록이 없어요 · 매일 오전 7시·오후 6시 자동 확인';
   return `<div class="bidbox ${open.length?'on':''}">
     <div class="hd"><b>나라장터 입찰</b><span class="hint">${esc(last)}</span>${L.length?'<button class="btn" type="button" id="bidAll">전체 보기</button>':''}</div>
     <div class="bidk">
       <button type="button" data-bidk="open" aria-pressed="${bidOnly}"><b style="color:#D92D20">${open.length}</b><span>진행 중 · ${nb}개 빌딩</span></button>
+      <button type="button" data-bidk="ended"><b>${done.length}</b><span>최근 마감(90일)</span></button>
       <button type="button" data-bidk="new"><b>${nw.length}</b><span>최근 7일 신규</span></button>
       <button type="button" data-bidk="won"><b>${won.length}</b><span>낙찰 결과</span></button>
     </div>
     ${open.length?`<ul class="bids">${open.sort(bidSort).slice(0,5).map(x=>bidItem(x,true)).join('')}</ul>${open.length>5?`<div class="hint" style="margin-top:4px">외 ${open.length-5}건 — ‘전체 보기’</div>`:''}`
-      :`<div class="hint" style="margin-top:8px">${L.length?'지금 진행 중인 입찰은 없어요.':'이 권역 빌딩과 연결된 공고가 아직 없어요.'}</div>`}
+      :done.length?`<div class="hint" style="margin-top:8px">지금 진행 중인 입찰은 없어요. 최근에 마감된 공고예요.</div>
+        <ul class="bids">${done.sort(bidSort).slice(0,5).map(x=>bidItem(x,true)).join('')}</ul>${done.length>5?`<div class="hint" style="margin-top:4px">외 ${done.length-5}건 — ‘전체 보기’</div>`:''}`
+      :`<div class="hint" style="margin-top:8px">${L.length?'최근 90일 안에 마감된 공고도 없어요. ‘전체 보기’에서 지난 공고를 볼 수 있어요.':'이 권역 빌딩과 연결된 공고가 아직 없어요.'}</div>`}
   </div>`;
 }
 function bindBidBox(p){
   const all=p.querySelector('#bidAll');if(all)all.onclick=()=>openBidList('open');
   p.querySelectorAll('[data-bidk]').forEach(el=>el.onclick=()=>{const k=el.dataset.bidk;
     if(k==='open'){bidOnly=!bidOnly;drawMarkers();renderDash();if(bidOnly)fitZone();const l=p.querySelector('#blist');if(bidOnly&&l)l.scrollIntoView({behavior:'smooth',block:'start'})}
-    else openBidList(k)});
+    else openBidList(k==='ended'?'ended':k)});
   const box=p.querySelector('.bidbox');if(box)bindBidList(box,renderDash);
 }
 function bidDetail(b){
   const L=bidLinks.filter(x=>x.building_id===b.id&&(!x.hidden||canEdit())).sort(bidSort);
-  if(!L.length)return `<h3>나라장터 입찰</h3><div class="hint">연결된 공고가 없어요.${canEdit()?' 공고명에 다른 이름이 쓰이면 ‘정보 수정’에서 입찰 검색어를 넣어 주세요.':''}</div>`;
+  if(!L.length)return `<h3>나라장터 입찰</h3><div class="hint">진행 중이든 끝난 것이든 연결된 공고가 없어요.${canEdit()?' 공고명에 다른 이름이 쓰이면 ‘정보 수정’에서 입찰 검색어를 넣어 주세요.':''}</div>`;
   const open=L.filter(x=>!x.hidden&&bidIsOpen(x)).length;
   return `<h3>나라장터 입찰 · ${L.filter(x=>!x.hidden).length}건${open?` <span class="dday">진행 중 ${open}</span>`:''}</h3><ul class="bids">${L.map(x=>bidItem(x,false)).join('')}</ul>`;
 }
@@ -1275,7 +1292,7 @@ function openBidList(tab){
   const draw=()=>{
     const ids=new Set(buildings.filter(inZone).map(b=>b.id));
     const L=bidLinks.filter(x=>ids.has(x.building_id)&&(!x.hidden||bidTab==='hidden'));
-    const T=[['open','진행 중',x=>bidIsOpen(x)&&!x.hidden],['new','최근 7일 신규',x=>bidIsNew(x)&&!x.hidden],['won','낙찰 결과',x=>!!x.bids.winner&&!x.hidden],['all','전체',x=>!x.hidden]];
+    const T=[['open','진행 중',x=>bidIsOpen(x)&&!x.hidden],['ended','마감',x=>bidDone(x)&&!x.hidden],['new','최근 7일 신규',x=>bidIsNew(x)&&!x.hidden],['won','낙찰 결과',x=>!!x.bids.winner&&!x.hidden],['all','전체',x=>!x.hidden]];
     if(canEdit())T.push(['hidden','숨긴 공고',x=>x.hidden]);
     const cur=T.find(t=>t[0]===bidTab)||T[0];const list=L.filter(cur[2]).sort(bidSort);
     const m=modal(`<h2>나라장터 입찰 · ${esc(ZNAME[zone])}</h2>
@@ -1294,9 +1311,12 @@ function drawBidPins(){
   for(const mk of bidPins.values())mk.remove();bidPins.clear();
   if(!mapReady||!me)return;
   for(const b of visible()){
-    const n=bidOpenOf(b.id).length;if(!n||!hasPos(b))continue;
-    const el=document.createElement('button');el.type='button';el.className='bidpin';el.title=`${b.name} · 입찰 진행 ${n}건`;
-    el.innerHTML=`<i></i><b>입찰${n>1?' '+n:''}</b>`;
+    if(!hasPos(b))continue;
+    const n=bidOpenOf(b.id).length,d=bidDoneOf(b.id).length;
+    if(!n&&!d)continue;
+    const el=document.createElement('button');el.type='button';el.className='bidpin'+(n?'':' done');
+    el.title=n?`${b.name} · 입찰 진행 ${n}건`:`${b.name} · 최근 마감된 입찰 ${d}건`;
+    el.innerHTML=n?`<i></i><b>입찰${n>1?' '+n:''}</b>`:`<i></i><b>마감${d>1?' '+d:''}</b>`;
     el.onclick=e=>{e.stopPropagation();openDetail(b.id,true)};
     bidPins.set(b.id,new maplibregl.Marker({element:el}).setLngLat([b.lng,b.lat]).addTo(map));
   }
