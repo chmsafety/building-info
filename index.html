@@ -1206,7 +1206,8 @@ async function loadBids(){
 }
 const DAY=864e5;
 const bidCanceled=x=>/취소/.test(x.bids.kind||'');
-const bidIsOpen=x=>!bidCanceled(x)&&x.bids.close_at&&new Date(x.bids.close_at)>new Date();
+const bidEnd=x=>x.bids.close_at||x.bids.open_at;   // 마감일시가 없는 공고(자체집행 등)는 개찰일시로 판단
+const bidIsOpen=x=>!bidCanceled(x)&&bidEnd(x)&&new Date(bidEnd(x))>new Date();
 const bidIsNew=x=>x.bids.notice_at&&Date.now()-new Date(x.bids.notice_at)<7*DAY;
 const bidOpenOf=id=>bidLinks.filter(x=>x.building_id===id&&!x.hidden&&bidIsOpen(x));
 const fmtWon=v=>{v=+v;if(!v)return '';return v>=1e8?(v/1e8).toFixed(v>=1e9?0:1)+'억원':Math.round(v/1e4).toLocaleString('ko-KR')+'만원'};
@@ -1215,7 +1216,7 @@ function bidBadge(x){
   const b=x.bids;
   if(bidCanceled(x))return '<span class="dday end">취소</span>';
   if(b.winner)return '<span class="dday win">낙찰</span>';
-  if(bidIsOpen(x)){const d=Math.ceil((new Date(b.close_at)-Date.now())/DAY);return `<span class="dday">${d<=0?'오늘 마감':'D-'+d}</span>`}
+  if(bidIsOpen(x)){const d=Math.ceil((new Date(bidEnd(x))-Date.now())/DAY);return `<span class="dday">${d<=0?'오늘 마감':'D-'+d}</span>`}
   return '<span class="dday end">마감</span>';
 }
 function bidItem(x,withName){
@@ -1223,7 +1224,7 @@ function bidItem(x,withName){
   return `<li class="${x.hidden?'hid':''}">
     ${withName?`<button class="bn" type="button" data-bid-b="${esc(x.building_id)}">${esc(bl.name||'')}</button>`:''}
     <span class="t">${bidBadge(x)}${bidIsNew(x)&&!b.winner?'<span class="dday new">NEW</span>':''}${u?`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(b.title)}</a>`:esc(b.title)}</span>
-    <span class="m">${[b.demand_org||b.org,'공고 '+fmtDt(b.notice_at),'마감 '+fmtDt(b.close_at),b.price?'추정 '+fmtWon(b.price):'',b.contract_method].filter(Boolean).map(esc).join(' · ')}</span>
+    <span class="m">${[b.demand_org||b.org,'공고 '+fmtDt(b.notice_at),b.close_at?'마감 '+fmtDt(b.close_at):(b.open_at?'개찰 '+fmtDt(b.open_at):''),b.price?'추정 '+fmtWon(b.price):'',b.contract_method].filter(Boolean).map(esc).join(' · ')}</span>
     ${b.winner?`<span class="m">낙찰: <b>${esc(b.winner)}</b>${b.winner_amt?' · '+fmtWon(b.winner_amt):''}${b.winner_rate?' ('+esc(b.winner_rate)+'%)':''}</span>`:''}
     ${canEdit()?`<button class="hide" type="button" data-bid-hide="${esc(x.bid_no)}|${esc(x.building_id)}|${x.hidden?0:1}">${x.hidden?'다시 보이기':'이 빌딩 공고 아님 · 숨기기'}</button>`:''}
   </li>`;
@@ -1239,7 +1240,7 @@ function bindBidList(root,after){
   });
 }
 const bidSort=(a,b)=>{const oa=bidIsOpen(a),ob=bidIsOpen(b);if(oa!==ob)return oa?-1:1;
-  return oa?new Date(a.bids.close_at)-new Date(b.bids.close_at):new Date(b.bids.notice_at||0)-new Date(a.bids.notice_at||0)};
+  return oa?new Date(bidEnd(a))-new Date(bidEnd(b)):new Date(b.bids.notice_at||0)-new Date(a.bids.notice_at||0)};
 function bidBox(zb){
   const ids=new Set(zb.map(b=>b.id));const L=bidLinks.filter(x=>ids.has(x.building_id)&&!x.hidden);
   const open=L.filter(bidIsOpen),nw=L.filter(bidIsNew),won=L.filter(x=>x.bids.winner);
