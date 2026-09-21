@@ -1505,7 +1505,7 @@ async function bidCall(body){
 }
 function openBidSync(){
   const m=modal(`<h2>나라장터 입찰 가져오기</h2>
-    <p class="hint" style="margin:0">조달청 나라장터의 <b>용역</b> 입찰공고를 날짜별로 읽어, 공고명에 등록된 빌딩 이름(또는 빌딩별 입찰 검색어·발주기관명)이 들어간 공고만 빌딩에 연결해요. 개찰이 끝난 공고는 낙찰자를 확인해 <b>관리사 검토 대기</b>로 올려 줘요. 평소에는 매일 오전 7시·오후 6시에 자동으로 확인하니, 여기서는 처음 한 번 지난 기간을 채우거나 검색어를 바꾼 뒤 다시 확인할 때 쓰세요.</p>
+    <p class="hint" style="margin:0">조달청 나라장터의 <b>용역</b> 입찰공고를 날짜별로 읽어, 공고명에 등록된 빌딩 이름(또는 빌딩별 입찰 검색어·발주기관명)이 들어간 공고만 빌딩에 연결해요. 공고의 지역과 빌딩의 시도가 <b>확실히 다르면 연결하지 않아요</b>(전국에 같은 이름 빌딩이 많아서요). 개찰이 끝난 공고는 낙찰자를 확인해 <b>관리사 검토 대기</b>로 올려 줘요. 평소에는 매일 오전 7시·오후 6시에 자동으로 확인하니, 여기서는 처음 한 번 지난 기간을 채우거나 검색어를 바꾼 뒤 다시 확인할 때 쓰세요.</p>
     <div class="g2" style="margin-top:12px;align-items:end">
       <div><label for="bdDays">기간</label><select id="bdDays"><option value="7">최근 7일</option><option value="30" selected>최근 30일</option><option value="90">최근 90일</option><option value="180">최근 180일</option><option value="365">최근 1년 (관리사 파악용)</option></select></div>
       <label class="keep" style="margin:0 0 10px"><input type="checkbox" id="bdFm" checked> 시설관리 관련 공고만 (청소·경비·설비 등)</label>
@@ -1548,17 +1548,17 @@ function openBidSync(){
     const go=m.querySelector('#bdGo'),st=m.querySelector('#bdStop');go.disabled=true;st.disabled=false;
     const days=+m.querySelector('#bdDays').value,fmOnly=m.querySelector('#bdFm').checked;
     const list=[];for(let i=days-1;i>=0;i--){const d=new Date(Date.now()+9*3600e3-i*DAY);list.push(d.toISOString().slice(0,10).replace(/-/g,''))}
-    let tot={scan:0,match:0,nw:0,calls:0};
+    let tot={scan:0,match:0,nw:0,calls:0,rskip:0};
     try{
       for(const [k,day] of list.entries()){
         if(stop)break;lastAct=Date.now();
         let r,tries=0;
         while(true){try{r=await bidCall({action:'run',day,fmOnly});break}
           catch(e){if(++tries>=3||/SERVICE|등록되지|인증|LIMITED|한도|관리자/.test(e.message))throw e;log(`  재시도 (${e.message})`);await new Promise(s=>setTimeout(s,3000))}}
-        tot.scan+=r.scanned;tot.match+=r.matched;tot.nw+=r.newLinks;tot.calls+=r.calls;
+        tot.scan+=r.scanned;tot.match+=r.matched;tot.nw+=r.newLinks;tot.calls+=r.calls;tot.rskip+=r.regionSkipped||0;
         if(r.matched)log(`${day.slice(4,6)}/${day.slice(6)}: 용역 ${r.scanned}건 중 연결 ${r.matched}건 (새로 ${r.newLinks})`);
         m.querySelector('#bdBar').style.width=((k+1)/list.length*100).toFixed(1)+'%';
-        m.querySelector('#bdSum').textContent=`진행 ${k+1}/${list.length}일 · 읽은 공고 ${tot.scan.toLocaleString()} · 연결 ${tot.match} · 새로 ${tot.nw} · API 호출 ${tot.calls}`;
+        m.querySelector('#bdSum').textContent=`진행 ${k+1}/${list.length}일 · 읽은 공고 ${tot.scan.toLocaleString()} · 연결 ${tot.match} · 새로 ${tot.nw}${tot.rskip?` · 다른 지역이라 거른 것 ${tot.rskip}`:''} · API 호출 ${tot.calls}`;
       }
       log(stop?'— 멈췄어요.':'✔ 공고 확인 끝. 낙찰자도 확인해요…');
       if(!stop){try{const w=await winAll(10);log(`  낙찰자 ${w.g}/${w.c}건 확인 · 관리사 검토 대기 ${w.sg}건 등록`)}catch(e){log('  낙찰자 확인 실패: '+e.message+keyHint(e.message))}}
