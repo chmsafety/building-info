@@ -98,6 +98,7 @@ main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 .tw{width:26px;height:26px;flex:none;border-radius:7px;background:var(--chip);border:1px solid var(--line);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;line-height:1}
 .sbHd:hover .tw,h3 .h3t:hover .tw{background:var(--paper)}
 h3.ch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:8px}
+.sbox.off{padding-bottom:8px}
 .stg{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .stg button{border:1px solid var(--line);background:var(--paper);border-radius:99px;padding:4px 10px;font-size:12px;display:inline-flex;gap:6px;align-items:center}
 .stg button[aria-pressed="true"]{outline:2px solid var(--pin)}
@@ -210,6 +211,16 @@ dl{display:grid;grid-template-columns:92px 1fr;gap:6px 12px;margin:0}dt{color:va
 .note{font-size:12px;color:var(--ink2);background:var(--bg);border-radius:8px;padding:8px 10px;margin-top:12px;white-space:pre-wrap}
 .actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
 .hist{list-style:none;margin:0;padding:0;font-size:13px}.hist li{padding:6px 0;border-bottom:1px dashed var(--line)}.hist small{color:var(--ink2)}
+.fmh{list-style:none;margin:6px 0 0;padding:0;font-size:13px}
+.fmh li{padding:7px 0;border-top:1px dashed var(--line);display:grid;grid-template-columns:1fr auto;gap:2px 8px}
+.fmh .co{font-weight:600}
+.fmh .m{font-size:12px;color:var(--ink2);grid-column:1/3}
+.fmh .m a{color:var(--ink2)}
+.fmh .rl{font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;background:var(--chip);color:var(--ink2);margin-right:5px}
+.fmh .rl.now{background:var(--ok);color:var(--paper)}
+.fmh .btns{display:flex;gap:8px;align-items:center;white-space:nowrap}
+.fmh .x{border:0;background:none;color:var(--ink2);font-size:11px;text-decoration:underline;padding:0}
+.fmh li.past .co{color:var(--ink2);font-weight:500}
 form .f{display:grid;gap:4px;margin-bottom:10px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 10px}
 .stf{display:grid;grid-template-columns:44px 72px 1fr;gap:6px 8px;align-items:center;margin-bottom:6px}
@@ -382,6 +393,7 @@ let pubF='all';   // 구분 필터: all / pub(공공) / priv(민간)
 let fmSug=[], fmRun=null;   // 관리사 자동 검색: 검토 대기 목록, 마지막 실행
 let bidLinks=[], bidRun=null, bidOnly=false, bidAny=false, bidTab='open';   // 나라장터 입찰: 빌딩과 연결된 공고, 마지막 확인
 let sales={}, salesOK=true, people=[], stageF='all', colorMode='fm', myOnly=false;   // 영업 파이프라인
+let fmHist=[];   // 관리업체 변경 이력 (지금 보고 있는 빌딩)
 /* 대시보드 카드 접기/펴기 (기기에 기억) */
 const OPEN=(()=>{try{return JSON.parse(localStorage.getItem('bldg_open')||'{}')||{}}catch(_){return {}}})();
 const isOpen=k=>OPEN[k]!==false;
@@ -468,19 +480,63 @@ async function enterApp(){
   await loadAll();
   if(me.must_change_pw)openPwModal(true);
 }
+/* ---------- 빌딩 목록 불러오기 ----------
+   지도·목록에 쓰는 칸만 받아요. 사진 출처(photo_src)·메모(memo)처럼 상세에서만 쓰는 큰 칸은 빼고,
+   상세를 열 때 그 빌딩 한 건만 전부 다시 받아요(ensureFull). 전국으로 늘려도 전송량이 덜 늘게. */
+const LIST_COLS='id,name,address,region,district,zone,gfa,floors_above,floors_below,completed,use_type,owner,lat,lng,photos,fm,staff,model3d,verified,updated_at,updated_by';
+const OPT_COLS=['is_public','bid_keywords','bid_orgs','photo_src','memo'];   // 나중에 더한 칸 — 아직 SQL을 안 돌린 프로젝트도 있어서 있는지 확인해서 써요
+const DETAIL_ONLY=['photo_src','memo'];                                      // 있어도 목록에선 안 받는 칸
+const HAS={};                                                                // 칸 이름 → 있으면 true
+const PAGE=1000;                                                             // Supabase 'Max rows' 기본값. 이 단위로 나눠 받아요.
+const RELOAD_MS=5*60000;                                                     // 창을 다시 볼 때 재로딩하는 최소 간격
+async function probeCols(){
+  if(Object.keys(HAS).length)return;
+  const r=await Promise.all(OPT_COLS.map(c=>sb.from('buildings').select(c).limit(1)));
+  OPT_COLS.forEach((c,i)=>HAS[c]=!r[i].error);
+}
+const listCols=()=>LIST_COLS+OPT_COLS.filter(c=>HAS[c]&&!DETAIL_ONLY.includes(c)).map(c=>','+c).join('');
+/* 1000건씩 나눠 받아요 — 'Max rows' 설정 때문에 조용히 잘리는 걸 막습니다. */
+async function fetchBuildings(){
+  const cols=listCols();let out=[],from=0;
+  for(;;){
+    const {data,error}=await sb.from('buildings').select(cols)
+      .order('gfa',{ascending:false,nullsFirst:false}).order('id').range(from,from+PAGE-1);
+    if(error)return {error};
+    out=out.concat(data||[]);
+    if(!data||data.length<PAGE)break;
+    from+=PAGE;
+    if(from>=60000){toast('빌딩이 6만 건을 넘어 앞부분만 불러왔어요.');break}
+  }
+  return {data:out};
+}
+/* 상세·편집에서 필요한 나머지 칸을 그때 한 건만 받아 채워요. */
+async function ensureFull(b){
+  if(!b||b.__full)return b;
+  const {data,error}=await sb.from('buildings').select('*').eq('id',b.id).maybeSingle();
+  if(!error&&data)Object.assign(b,data);
+  b.__full=true;   // 못 받았어도 매번 다시 조르지 않게
+  return b;
+}
+let lastLoad=0;
 async function loadAll(){
-  const [{data:bs,error},{data:ps}]=await Promise.all([
-    sb.from('buildings').select('*').order('gfa',{ascending:false,nullsFirst:false}),
-    sb.from('profiles').select('id,name')]);
-  if(error){toast('자료를 불러오지 못했어요: '+error.message);return}
-  buildings=bs||[];names=Object.fromEntries((ps||[]).map(p=>[p.id,p.name]));people=(ps||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko'));
+  await probeCols();
+  const [bs,{data:ps}]=await Promise.all([fetchBuildings(),sb.from('profiles').select('id,name')]);
+  if(bs.error){toast('자료를 불러오지 못했어요: '+bs.error.message);return}
+  lastLoad=Date.now();
+  buildings=bs.data||[];names=Object.fromEntries((ps||[]).map(p=>[p.id,p.name]));people=(ps||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko'));
   for(const b of buildings)if(!b.zone)b.zone=autoZone(b.region,b.district);
   await Promise.all([loadFmSug(),loadBids(),loadSales()]);
   renderZones();drawMarkers();renderPanel();
   firstFit();
   loadFacadesInView();if(v3open&&!v3link)send3D(null);
 }
-addEventListener('focus',()=>{if(me&&mode!=='edit'&&!document.querySelector('#ph iframe'))loadAll()});   // 로드뷰를 보는 중엔 다시 그리지 않음
+/* 창을 다시 볼 때마다 전체를 다시 받으면 전송량이 큽니다. 5분에 한 번만.
+   (편집 중이거나 로드뷰를 보는 중엔 다시 그리지 않아요) */
+addEventListener('focus',()=>{
+  if(!me||mode==='edit'||document.querySelector('#ph iframe'))return;
+  if(Date.now()-lastLoad<RELOAD_MS)return;
+  loadAll();
+});
 
 /* ================= 메뉴 ================= */
 $('#whoBtn').onclick=e=>{e.stopPropagation();const m=$('#whoMenu');m.classList.toggle('hidden');$('#whoBtn').setAttribute('aria-expanded',String(!m.classList.contains('hidden')))};
@@ -854,6 +910,7 @@ async function photoUrls(paths){
 async function renderDetail(){
   const p=$('#panel');const b=buildings.find(x=>x.id===selId);
   if(!b){mode='dash';return renderDash()}
+  if(!b.__full){await ensureFull(b);if(selId!==b.id||mode!=='detail')return}   // 메모·사진 출처는 여기서 받아요
   const ph=b.photos||[];const mx=Math.max(1,...CATS.map(([k])=>+(b.staff?.[k]?.n)||0));
   const tab=phTab||(ph.length?'photo':'rv');
   const m3=(()=>{const x=box(b);return {n:FACES.filter(([k])=>x.faces[k]).length,vw:x.vw}})();
@@ -878,6 +935,7 @@ async function renderDetail(){
       ${b.fm?.pm?`<dt>PM</dt><dd>${esc(b.fm.pm)}</dd>`:''}
       <dt>담당자</dt><dd>${esc(b.fm?.manager||'—')}</dd><dt>연락처</dt><dd>${esc(b.fm?.contact||'—')}</dd><dt>계약기간</dt><dd>${esc(b.fm?.period||'—')}</dd>${b.fm?.source?`<dt>출처</dt><dd>${srcLink(b.fm.source)}${b.fm.checked_at?' <span class="hint">· '+esc(b.fm.checked_at)+' 반영</span>':''}</dd>`:''}</dl>
     ${fmSug.filter(x=>x.building_id===b.id).map(x=>sugCard(x,false)).join('')}
+    ${histBox(b)}
     ${contractBox(b)}
     ${salesDetail(b)}
     ${bidDetail(b)}
@@ -898,6 +956,8 @@ async function renderDetail(){
   if($('#phFind'))$('#phFind').onclick=()=>openPhotoFinder([b.id]);
   p.querySelectorAll('[data-pt]').forEach(t=>t.onclick=()=>{if(t.dataset.pt!==tab){phTab=t.dataset.pt;renderDetail()}});
   bindSug($('#panel'));bindBidList($('#panel'),renderDetail);bindSales($('#panel'),b);
+  if($('#fmhAdd'))$('#fmhAdd').onclick=()=>openHistEdit(b,null);
+  loadHist(b);
   if($('#v3lk'))$('#v3lk').onclick=()=>open3D(b.id,b.id);
   if($('#del'))$('#del').onclick=async()=>{if(!delArm){delArm=true;return renderDetail()}
     const {error}=await sb.from('buildings').delete().eq('id',b.id);
@@ -919,7 +979,8 @@ async function renderDetail(){
 }
 
 /* ================= 편집 ================= */
-function startEdit(b){
+async function startEdit(b){
+  if(b)await ensureFull(b);
   draft=b?JSON.parse(JSON.stringify(b)):{name:'',photos:[],fm:{},staff:{},isNew:true,zoneAuto:true};
   draft.fm=draft.fm||{};draft.staff=draft.staff||{};draft.photos=draft.photos||[];
   draft.model3d=JSON.parse(JSON.stringify(draft.model3d||{}));draft.model3d.faces=draft.model3d.faces||{};
@@ -982,6 +1043,7 @@ async function renderEdit(){
     <div class="g2"><div class="f"><label for="fm_manager">담당자</label><input id="fm_manager" name="fm_manager" value="${val(d.fm.manager)}"></div>
       <div class="f"><label for="fm_contact">연락처</label><input id="fm_contact" name="fm_contact" value="${val(d.fm.contact)}"></div></div>
     <div class="f"><label for="fm_period">계약기간</label><input id="fm_period" name="fm_period" value="${val(d.fm.period)}" placeholder="예: 2025.01 ~ 2027.12"></div>
+    <div class="hint">관리회사·협력사를 바꾸면 이전 업체가 <b>관리업체 이력</b>에 자동으로 남아요. 계약기간을 함께 바꾸면 그 시작일부터로 기록해요.</div>
     <h3>관리 인력</h3>
     ${CATS.map(([k,l])=>`<div class="stf"><span>${l}</span><input name="s_${k}" inputmode="numeric" aria-label="${l} 인원" placeholder="명" value="${val(d.staff[k]?.n||'')}"><input name="c_${k}" aria-label="${l} 협력사" placeholder="협력사(선택)" value="${val(d.staff[k]?.company)}"></div>`).join('')}
     <h3>나라장터 입찰</h3>
@@ -1047,10 +1109,10 @@ async function save(){
   const row={name:draft.name,address:draft.address||null,region:draft.region,district:draft.district,zone:draft.zone,gfa:draft.gfa,
     floors_above:draft.floors_above,floors_below:draft.floors_below,completed:draft.completed||null,use_type:draft.use_type||null,owner:draft.owner||null,
     lat:draft.lat,lng:draft.lng,photos:draft.photos,fm:draft.fm,staff:draft.staff,memo:draft.memo||null,verified:!!draft.verified,model3d:cleanModel(draft.model3d)};
-  if(buildings.some(x=>'is_public' in x)||draft.is_public)row.is_public=!!draft.is_public;
-  if(buildings.some(x=>'bid_keywords' in x)||draft.bid_keywords)row.bid_keywords=draft.bid_keywords||null;
-  if(buildings.some(x=>'bid_orgs' in x)||draft.bid_orgs)row.bid_orgs=draft.bid_orgs||null;
-  if(buildings.some(x=>'photo_src' in x)){const s={};for(const p of draft.photos)if(draft.photo_src?.[p])s[p]=draft.photo_src[p];row.photo_src=s}
+  if(HAS.is_public||draft.is_public)row.is_public=!!draft.is_public;
+  if(HAS.bid_keywords||draft.bid_keywords)row.bid_keywords=draft.bid_keywords||null;
+  if(HAS.bid_orgs||draft.bid_orgs)row.bid_orgs=draft.bid_orgs||null;
+  if(HAS.photo_src){const s={};for(const p of draft.photos)if(draft.photo_src?.[p])s[p]=draft.photo_src[p];row.photo_src=s}
   $('#save').disabled=true;er.textContent='';
   let res;
   if(draft.isNew)res=await sb.from('buildings').insert({...row,...(draft.id?{id:draft.id}:{})}).select('id');
@@ -1416,6 +1478,79 @@ function openBidSync(){
 }
 
 
+/* ================= 관리업체 변경 이력 ================= */
+const ROLE_SEL=[['facility','시설(FM)'],['security','보안'],['cleaning','미화'],['other','기타'],['pm','PM']];
+const fmtDay=s=>s?String(s).slice(0,10).replace(/-/g,'.'):'';
+function histBox(b){
+  return `<h3>관리업체 이력</h3>
+    <div class="hint">업체를 바꾸거나 새로 넣으면 이전 업체가 자동으로 남아요. 앱에 등록하기 전의 과거 업체는 직접 넣을 수 있어요.</div>
+    <ul class="fmh" id="fmhList"><li class="m">불러오는 중…</li></ul>
+    ${canEdit()?'<button class="btn" id="fmhAdd" type="button" style="margin-top:8px;padding:4px 10px;font-size:12px">과거 이력 추가</button>':''}`;
+}
+function histItem(h){
+  const open=!h.ended_on;
+  const span=(fmtDay(h.started_on)||'시작일 모름')+' ~ '+(open?'현재':fmtDay(h.ended_on));
+  const who=h.created_by&&names[h.created_by]?' · 기록 '+names[h.created_by]:'';
+  return `<li class="${open?'':'past'}">
+    <span class="co"><span class="rl ${open?'now':''}">${esc(ROLE_LBL[h.role]||h.role)}</span>${esc(h.company)}</span>
+    ${canEdit()?`<span class="btns"><button class="x" type="button" data-fmh-e="${h.id}">고치기</button>${isAdmin()?`<button class="x" type="button" data-fmh-d="${h.id}">지우기</button>`:''}</span>`:'<span></span>'}
+    <span class="m">${esc(span)}${h.period?' · 계약기간 '+esc(h.period):''}${h.source?' · 출처 '+srcLink(h.source):''}${h.note?' · '+esc(h.note):''}${esc(who)}</span>
+  </li>`;
+}
+async function loadHist(b){
+  if(!$('#fmhList'))return;
+  const {data,error}=await sb.from('fm_history').select('*').eq('building_id',b.id)
+    .order('ended_on',{ascending:false,nullsFirst:true}).order('started_on',{ascending:false,nullsFirst:false}).order('id',{ascending:false});
+  const box=$('#fmhList');if(!box||selId!==b.id||mode!=='detail')return;
+  if(error){box.innerHTML=`<li class="m">${/does not exist|relation|schema cache/i.test(error.message)?'이력 저장 칸이 아직 없어요. Supabase 에서 <b>supabase/11_fm_history.sql</b> 을 한 번 실행하면 켜져요.':'이력을 불러오지 못했어요: '+esc(error.message)}</li>`;return}
+  fmHist=data||[];
+  if(!fmHist.length){box.innerHTML='<li class="m">아직 기록된 업체 이력이 없어요.</li>';return}
+  const rs=ROLE_ORD.filter(r=>fmHist.some(h=>h.role===r));
+  box.innerHTML=rs.map(r=>fmHist.filter(h=>h.role===r).map(histItem).join('')).join('');
+  box.querySelectorAll('[data-fmh-e]').forEach(el=>el.onclick=()=>openHistEdit(b,fmHist.find(h=>h.id===+el.dataset.fmhE)));
+  box.querySelectorAll('[data-fmh-d]').forEach(el=>el.onclick=()=>delHist(b,+el.dataset.fmhD));
+}
+async function delHist(b,id){
+  const h=fmHist.find(x=>x.id===id);
+  if(!h||!confirm(`‘${h.company}’ 이력을 지울까요? 되돌릴 수 없어요.`))return;
+  const {error}=await sb.from('fm_history').delete().eq('id',id);
+  if(error)return toast('지우지 못했어요: '+error.message);
+  toast('이력을 지웠어요');loadHist(b);
+}
+function openHistEdit(b,h){
+  if(!canEdit())return;
+  const d=h||{role:'facility',company:'',started_on:'',ended_on:'',period:'',source:'',note:''};
+  const m=modal(`<h2>${h?'관리업체 이력 고치기':'과거 관리업체 이력 추가'}</h2>
+    <p class="hint" style="margin:0">${esc(b.name)} · 종료일을 비우면 <b>현재 업체</b>가 돼요. 현재 업체는 구분마다 한 곳만 둘 수 있으니, 지금 업체를 바꾸려면 ‘정보 수정’에서 바꾸세요(이전 업체는 자동으로 여기에 남아요).</p>
+    <div class="sgrid" style="margin-top:12px">
+      <div class="f"><label for="hRole">구분</label><select id="hRole">${ROLE_SEL.map(([k,l])=>`<option value="${k}" ${d.role===k?'selected':''}>${esc(l)}</option>`).join('')}</select></div>
+      <div class="f"><label for="hCo">업체명</label><input id="hCo" maxlength="120" value="${esc(d.company||'')}"></div></div>
+    <div class="sgrid">
+      <div class="f"><label for="hS">시작일</label><input id="hS" type="date" value="${esc(d.started_on||'')}"></div>
+      <div class="f"><label for="hE">종료일</label><input id="hE" type="date" value="${esc(d.ended_on||'')}"></div></div>
+    <div class="f"><label for="hP">계약기간(글)</label><input id="hP" maxlength="120" value="${esc(d.period||'')}" placeholder="예: 2022.01 ~ 2024.12"></div>
+    <div class="f"><label for="hU">출처</label><input id="hU" maxlength="500" value="${esc(d.source||'')}" placeholder="확인한 링크나 확인 방법"></div>
+    <div class="f"><label for="hN">메모</label><input id="hN" maxlength="300" value="${esc(d.note||'')}" placeholder="예: 관리소장 확인"></div>
+    <div class="actions"><button class="btn pri" id="hOk" type="button">저장</button><button class="btn" id="hX" type="button">취소</button></div>
+    <div class="err" id="hErr"></div>`);
+  m.querySelector('#hX').onclick=closeModal;
+  m.querySelector('#hOk').onclick=async()=>{
+    const er=m.querySelector('#hErr');er.textContent='';
+    const row={building_id:b.id,role:m.querySelector('#hRole').value,company:m.querySelector('#hCo').value.trim(),
+      started_on:m.querySelector('#hS').value||null,ended_on:m.querySelector('#hE').value||null,
+      period:m.querySelector('#hP').value.trim()||null,source:m.querySelector('#hU').value.trim()||null,note:m.querySelector('#hN').value.trim()||null};
+    if(!row.company){er.textContent='업체명을 입력하세요.';return}
+    if(row.started_on&&row.ended_on&&row.ended_on<row.started_on){er.textContent='종료일이 시작일보다 빨라요.';return}
+    const ok=m.querySelector('#hOk');ok.disabled=true;
+    const {error}=h?await sb.from('fm_history').update(row).eq('id',h.id):await sb.from('fm_history').insert(row);
+    ok.disabled=false;
+    if(error){er.textContent=/fm_hist_open_idx|duplicate key/i.test(error.message)
+        ?'이 구분에는 이미 현재 업체가 있어요. 종료일을 넣어 과거 이력으로 남기거나, 지금 업체는 ‘정보 수정’에서 바꾸세요.'
+        :(/does not exist|relation|schema cache/i.test(error.message)?'이력 저장 칸이 아직 없어요. supabase/11_fm_history.sql 을 먼저 실행하세요.':'저장하지 못했어요: '+error.message);return}
+    closeModal();toast(h?'이력을 고쳤어요':'이력을 넣었어요');loadHist(b);
+  };
+}
+
 /* ================= 영업 파이프라인 · 계약 만료 ================= */
 async function loadSales(){
   const {data,error}=await sb.from('sales').select('*');
@@ -1714,12 +1849,13 @@ function openPhotoFinder(ids,ed){
     const x=items[k],b=cur();if(!x||!b||done.has(x.image)||el.classList.contains('busy'))return;
     el.classList.add('busy');err.textContent='';
     try{
+      if(!ed)await ensureFull(b);   // 기존 사진 출처를 받아놓아야 덮어쓰지 않아요
       const r=await photoCall({action:'save',id:b.id,image:x.image,thumb:x.thumb,doc:x.doc});
       const src={url:x.doc||x.image,site:x.site||srcHost(x.doc),at:new Date().toISOString().slice(0,10),...(r.small?{small:true}:{})};
       if(ed){ed.photos.push(r.path);ed.photo_src=Object.assign({},ed.photo_src,{[r.path]:src})}
       else{
         const photos=[...(b.photos||[]),r.path];const row={photos};
-        if('photo_src' in b)row.photo_src=Object.assign({},b.photo_src,{[r.path]:src});
+        if(HAS.photo_src)row.photo_src=Object.assign({},b.photo_src,{[r.path]:src});
         const u=await sb.from('buildings').update(row).eq('id',b.id).select('id');
         if(u.error||!u.data||!u.data.length){photoCall({action:'discard',path:r.path}).catch(()=>{});throw new Error(u.error?u.error.message:'저장 권한이 없어요.')}
         b.photos=photos;if(row.photo_src)b.photo_src=row.photo_src;
