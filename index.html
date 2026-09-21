@@ -68,12 +68,8 @@ main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 .maplibregl-ctrl-attrib{font-size:11px}
 .tmp-pin{width:28px;height:28px;border:3px dashed var(--hi);border-radius:50%}
 .map3d{position:absolute;left:10px;top:10px;z-index:5;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-.maplegend{position:absolute;left:10px;bottom:28px;z-index:5;display:flex;gap:10px;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
-.maplegend span{display:flex;align-items:center;gap:5px}
-.lg{width:12px;height:12px;border-radius:3px;display:inline-block;border:2px solid #0E5E66}
-.lg.on{background:#0E8A94}.lg.off{background:#fff;border-color:#E0662A}
-.lg.bid{border-radius:50%;border-color:#D92D20;background:rgba(217,45,32,.25)}
-.lg.bidend{border-radius:50%;border-color:#98A2B3;background:rgba(152,162,179,.3)}
+.maplegend{position:absolute;left:10px;bottom:28px;z-index:5;display:flex;gap:10px;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:4px 6px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.maplegend:empty{display:none}
 /* 나라장터 입찰 진행 중인 빌딩: 지도 위 깜빡이는 표시 */
 .bidpin{position:relative;width:18px;height:18px;cursor:pointer;border:0;padding:0;background:none}
 .bidpin i{position:absolute;inset:0;border-radius:50%;background:#D92D20;border:2px solid #fff;box-shadow:0 0 0 1px #D92D20}
@@ -293,7 +289,7 @@ td select{width:auto;padding:4px 6px}
     <div style="position:relative;min-height:0">
       <div id="map" aria-label="지도"></div>
       <button class="btn map3d" id="v3open" type="button">실사 3D</button>
-      <div class="maplegend" id="legend" aria-label="범례"><span><i class="lg on"></i>관리사 입력</span><span><i class="lg off"></i>미입력</span><span><i class="lg bid"></i>입찰 진행</span><span><i class="lg bidend"></i>입찰 마감</span></div>
+      <div class="maplegend" id="legend" aria-label="지도 색 기준"></div>
       <div class="banner hidden" id="banner" style="z-index:10">지도에서 빌딩 위치를 누르세요 · Esc 로 취소</div>
       <div class="v3 hidden" id="v3wrap"><iframe id="v3" title="실사 3D 지도"></iframe>
         <div class="v3bar"><button class="btn" id="v3close" type="button">← 지도로 돌아가기</button><span id="v3msg"></span></div></div>
@@ -562,13 +558,9 @@ function boxColor(b){   // 입체 빌딩 색 [면, 테두리]
   if(colorMode==='sales'){const s=sales[b.id]?.stage;return s?[hex2int(SCOL[s]),hex2int(SCOL[s])]:[0xFFFFFF,0x98A2B3]}
   return hasFM(b)?[0x0E8A94,0x0E5E66]:[0xFFFFFF,0xE0662A];
 }
-function renderLegend(){
+function renderLegend(){   // 색인(범례)은 없애고 색 기준 전환 버튼만 둠
   const el=$('#legend');if(!el)return;
-  el.innerHTML=(colorMode==='sales'
-    ?STAGES.map(([k,l,c])=>`<span><i class="lg" style="background:${c};border-color:${c}"></i>${esc(l)}</span>`).join('')+'<span><i class="lg off" style="border-color:#98A2B3"></i>미지정</span>'
-    :'<span><i class="lg on"></i>관리사 입력</span><span><i class="lg off"></i>미입력</span>')
-    +'<span><i class="lg bid"></i>입찰 진행</span><span><i class="lg bidend"></i>입찰 마감</span>'
-    +`<button type="button" class="legbtn" id="legSw">색 기준: ${colorMode==='sales'?'영업 단계':'관리사'} ⇄</button>`;
+  el.innerHTML=`<button type="button" class="legbtn" id="legSw">색 기준: ${colorMode==='sales'?'영업 단계':'관리사'} ⇄</button>`;
   const sw=$('#legSw');if(sw)sw.onclick=()=>{colorMode=colorMode==='sales'?'fm':'sales';drawMarkers()};
 }
 function visible(){
