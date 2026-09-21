@@ -366,6 +366,28 @@ function autoZone(region,district){
   if(region==='인천')return 'INCHEON';
   return null;
 }
+/* ---------- 시도(광역) ----------
+   전국으로 넓히면 시도를 먼저 고르고, 그 시도의 빌딩만 받아요(전송량·속도).
+   시도 안의 세부 구분: 서울·경기·인천은 기존 권역 그대로, 그 밖의 시도는 시군구로 나눠요. */
+const SIDO_STD=['서울','경기','인천','부산','대구','광주','대전','울산','세종','강원','충북','충남','전북','전남','경북','경남','제주'];
+const SUB_FIXED={'서울':['CBD','GBD','YBD','MAGOK','SEOUL_ETC'],'경기':['BUNDANG','GG_ETC'],'인천':['INCHEON']};
+const ZORDER=['CBD','GBD','YBD','MAGOK','SEOUL_ETC','BUNDANG','GG_ETC','INCHEON'];
+const BIG_TOTAL=3000;      // 전국 빌딩이 이보다 많으면 앱을 열 때 시도 하나만 불러와요
+let REGIONS=[];            // [{region,n}] — region_counts() 결과. 없으면 빈 배열(= 예전처럼 전체 로드)
+const dKey=d=>'d:'+d;                                     // 시군구 세부 id
+const isDist=z=>typeof z==='string'&&z.startsWith('d:');
+const zoneName=z=>z==='all'?'전체':z==='none'?'그 외 지역':(isDist(z)?z.slice(2):(ZNAME[z]||z));
+const regionName=()=>regionF==='ALL'?'전국':regionF;
+const scopeName=()=>zone==='all'?regionName():regionName()+' · '+zoneName(zone);
+function sidoList(){       // 시도 목록 — RPC 가 없으면 지금 불러온 자료에서 뽑아요
+  if(REGIONS.length)return REGIONS;
+  const c={};for(const b of buildings)if(b.region)c[b.region]=(c[b.region]||0)+1;
+  return Object.entries(c).map(([region,n])=>({region,n})).sort((a,b)=>b.n-a.n||a.region.localeCompare(b.region,'ko'));
+}
+function sidoOptions(cur){ // 편집 화면 시도 선택지
+  const t=new Set(SIDO_STD);for(const r of sidoList())t.add(r.region);if(cur)t.add(cur);
+  return ['',...t];
+}
 const staffTotal=b=>CATS.reduce((s,[k])=>s+(+(b.staff?.[k]?.n)||0),0);
 /* 관리회사: 시설(fm.company)·보안·미화·기타(staff.*.company)·PM(fm.pm) 을 모두 모아 보여 줌 */
 const ROLE_OF={'보안':'security','미화':'cleaning','안내':'other','PM':'pm','pm':'pm'};
@@ -387,7 +409,7 @@ const hasFM=b=>mgmtCos(b).length>0;
 function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
 
 /* ================= 상태 ================= */
-let sb=null, me=null, buildings=[], names={}, zone='all', query='', onlyMissing=false;
+let sb=null, me=null, buildings=[], names={}, zone='all', regionF='ALL', query='', onlyMissing=false;   // zone=세부(권역 또는 'd:시군구'), regionF=시도
 let minPy=0;   // 연면적 필터 (평): 0=전체
 let pubF='all';   // 구분 필터: all / pub(공공) / priv(민간)
 let fmSug=[], fmRun=null;   // 관리사 자동 검색: 검토 대기 목록, 마지막 실행
@@ -477,6 +499,7 @@ async function enterApp(){
   $('#mPhoto').classList.toggle('hidden',!canEdit());
   if(!mapInit){mapInit=true;initMap()}
   setTimeout(()=>map&&map.resize(),50);
+  await loadRegions();initRegion();
   await loadAll();
   if(me.must_change_pw)openPwModal(true);
 }
@@ -499,8 +522,10 @@ const listCols=()=>LIST_COLS+OPT_COLS.filter(c=>HAS[c]&&!DETAIL_ONLY.includes(c)
 async function fetchBuildings(){
   const cols=listCols();let out=[],from=0;
   for(;;){
-    const {data,error}=await sb.from('buildings').select(cols)
+    let q=sb.from('buildings').select(cols)
       .order('gfa',{ascending:false,nullsFirst:false}).order('id').range(from,from+PAGE-1);
+    if(regionF!=='ALL')q=q.eq('region',regionF);          // 고른 시도만 받아요
+    const {data,error}=await q;
     if(error)return {error};
     out=out.concat(data||[]);
     if(!data||data.length<PAGE)break;
@@ -518,6 +543,20 @@ async function ensureFull(b){
   return b;
 }
 let lastLoad=0;
+const rcache=new Map();   // 시도 → {at,rows} — 시도를 오갈 때 다시 받지 않게
+/* 시도 목록·건수. region_counts() 함수가 없으면 빈 배열 → 예전처럼 전국을 한 번에 불러와요. */
+async function loadRegions(){
+  const {data,error}=await sb.rpc('region_counts');
+  REGIONS=(!error&&Array.isArray(data))?data.filter(r=>r&&r.region&&+r.n>0).map(r=>({region:String(r.region),n:+r.n})):[];
+}
+/* 처음 열 때 어느 시도를 볼지 — 지난번에 본 시도, 없으면 전국(빌딩이 많으면 제일 많은 시도) */
+function initRegion(){
+  let saved=null;try{saved=localStorage.getItem('bldg_region')}catch(_){}
+  const names=REGIONS.map(r=>r.region);
+  if(saved&&(saved==='ALL'||names.includes(saved))){regionF=saved;return}
+  const total=REGIONS.reduce((t,r)=>t+r.n,0);
+  regionF=(REGIONS.length>1&&total>BIG_TOTAL)?REGIONS[0].region:'ALL';
+}
 async function loadAll(){
   await probeCols();
   const [bs,{data:ps}]=await Promise.all([fetchBuildings(),sb.from('profiles').select('id,name')]);
@@ -525,10 +564,24 @@ async function loadAll(){
   lastLoad=Date.now();
   buildings=bs.data||[];names=Object.fromEntries((ps||[]).map(p=>[p.id,p.name]));people=(ps||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko'));
   for(const b of buildings)if(!b.zone)b.zone=autoZone(b.region,b.district);
+  rcache.set(regionF,{at:lastLoad,rows:buildings});
   await Promise.all([loadFmSug(),loadBids(),loadSales()]);
+  afterLoad();
+}
+function afterLoad(){
+  if(zone!=='all'&&!subList().some(x=>x.id===zone))zone='all';   // 시도를 바꾸면 세부는 '전체' 로
   renderZones();drawMarkers();renderPanel();
   firstFit();
   loadFacadesInView();if(v3open&&!v3link)send3D(null);
+}
+/* 시도 바꾸기 — 최근(5분 안)에 받아 둔 시도는 다시 받지 않아요 */
+async function setRegion(r){
+  if(regionF===r)return;
+  regionF=r;zone='all';selId=null;mode='dash';query='';
+  try{localStorage.setItem('bldg_region',r)}catch(_){}
+  const c=rcache.get(r);
+  if(c&&Date.now()-c.at<RELOAD_MS){buildings=c.rows;afterLoad();fitZone();return}
+  await loadAll();fitZone();
 }
 /* 창을 다시 볼 때마다 전체를 다시 받으면 전송량이 큽니다. 5분에 한 번만.
    (편집 중이거나 로드뷰를 보는 중엔 다시 그리지 않아요) */
@@ -552,19 +605,47 @@ $('#mCsv').onclick=exportCsv;
 
 /* ================= 권역 탭 ================= */
 const SIZES=[[0,'전체'],[10000,'1만평↑'],[20000,'2만평↑'],[30000,'3만평↑']];
+const LIST_MAX=400;   // 목록에 한 번에 그리는 줄 수 — 넘으면 '더 보기'로 늘려요 (지도·검색은 전부 그대로)
+let listMore=0;
 const sizeOk=b=>!minPy||(+b.gfa||0)>=minPy*PY;
 const pubOk=b=>pubF==='all'||(pubF==='pub'?!!b.is_public:!b.is_public);
-function inZone(b){return (zone==='all'||b.zone===zone)&&sizeOk(b)&&pubOk(b)}
+function inZone(b){
+  if(regionF!=='ALL'&&b.region!==regionF)return false;
+  if(zone==='none'){if(b.zone)return false}
+  else if(zone!=='all'){if(isDist(zone)?(b.district||'')!==zone.slice(2):b.zone!==zone)return false}
+  return sizeOk(b)&&pubOk(b);
+}
+/* 지금 시도 안의 세부 구분 — 서울·경기·인천은 권역, 그 밖의 시도는 시군구, 전국이면 권역만 */
+function subList(){
+  const list=buildings.filter(b=>(regionF==='ALL'||b.region===regionF)&&sizeOk(b)&&pubOk(b));
+  if(regionF==='ALL'||SUB_FIXED[regionF]){
+    const ids=regionF==='ALL'?ZORDER.filter(id=>list.some(b=>b.zone===id)):SUB_FIXED[regionF];
+    const out=ids.map(id=>({id,name:ZNAME[id],n:list.filter(b=>b.zone===id).length}));
+    const etc=regionF==='ALL'?list.filter(b=>!b.zone).length:0;   // 권역이 없는 지방 빌딩
+    if(etc)out.push({id:'none',name:'그 외 지역',n:etc});
+    return out;
+  }
+  const c={};for(const b of list)if(b.district)c[b.district]=(c[b.district]||0)+1;
+  return Object.entries(c).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'ko')).map(([d,n])=>({id:dKey(d),name:d,n}));
+}
 function renderZones(){
-  const sb2=buildings.filter(b=>sizeOk(b)&&pubOk(b));const cnt={};for(const b of sb2)cnt[b.zone]=(cnt[b.zone]||0)+1;
-  // 2단 배치: 윗줄 지역(권역), 아랫줄 연면적 — 옆으로 스크롤하지 않도록 줄바꿈
-  $('#zones').innerHTML=`<div class="zrow" role="group" aria-label="지역"><span class="zlbl">지역</span>`
-    +ZONES.map(z=>{const n=z.id==='all'?sb2.length:(cnt[z.id]||0);
-    return `<button class="zone" data-z="${z.id}" aria-pressed="${z.id===zone}">${esc(z.name)}<small>${n}</small></button>`}).join('')
-    +`</div><div class="zrow" role="group" aria-label="연면적"><span class="zlbl">연면적</span>`
+  // 3단 배치: 시도 / 세부(권역·시군구) / 연면적·구분 — 옆으로 스크롤하지 않도록 줄바꿈
+  const sd=sidoList(),subs=subList();
+  const inR=buildings.filter(b=>(regionF==='ALL'||b.region===regionF)&&sizeOk(b)&&pubOk(b));
+  const sidoRow=sd.length?`<div class="zrow" role="group" aria-label="시도"><span class="zlbl">지역</span>`
+    +`<button class="zone" data-r="ALL" aria-pressed="${regionF==='ALL'}">전국</button>`
+    +sd.map(r=>`<button class="zone" data-r="${esc(r.region)}" aria-pressed="${r.region===regionF}">${esc(r.region)}<small>${r.n}</small></button>`).join('')
+    +`</div>`:'';
+  const subRow=subs.length?`<div class="zrow" role="group" aria-label="세부"><span class="zlbl">${regionF!=='ALL'&&!SUB_FIXED[regionF]?'시군구':'권역'}</span>`
+    +`<button class="zone" data-z="all" aria-pressed="${zone==='all'}">전체<small>${inR.length}</small></button>`
+    +subs.map(x=>`<button class="zone" data-z="${esc(x.id)}" aria-pressed="${x.id===zone}">${esc(x.name)}<small>${x.n}</small></button>`).join('')
+    +`</div>`:'';
+  $('#zones').innerHTML=sidoRow+subRow
+    +`<div class="zrow" role="group" aria-label="연면적"><span class="zlbl">연면적</span>`
     +SIZES.map(([v,l])=>`<button class="zone" data-sz="${v}" aria-pressed="${v===minPy}">${l}</button>`).join('')
     +`<span class="zlbl" style="margin-left:10px">구분</span>`
-    +[['all','전체'],['priv','민간'],['pub','공공']].map(([v,l])=>`<button class="zone" data-pub="${v}" aria-pressed="${v===pubF}">${l}${v==='pub'?`<small>${buildings.filter(b=>b.is_public&&sizeOk(b)).length}</small>`:''}</button>`).join('')+`</div>`;
+    +[['all','전체'],['priv','민간'],['pub','공공']].map(([v,l])=>`<button class="zone" data-pub="${v}" aria-pressed="${v===pubF}">${l}${v==='pub'?`<small>${inR.filter(b=>b.is_public).length}</small>`:''}</button>`).join('')+`</div>`;
+  $('#zones').querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>setRegion(b.dataset.r));
   $('#zones').querySelectorAll('[data-pub]').forEach(b=>b.onclick=()=>{pubF=b.dataset.pub;renderZones();drawMarkers();if(mode==='dash')renderDash();fitZone()});
   $('#zones').querySelectorAll('[data-sz]').forEach(b=>b.onclick=()=>{minPy=+b.dataset.sz;renderZones();drawMarkers();if(mode==='dash')renderDash();fitZone()});
   $('#zones').querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{zone=b.dataset.z;mode='dash';selId=null;renderZones();drawMarkers();renderPanel();fitZone()});
@@ -838,6 +919,7 @@ $('#v3close').onclick=close3D;
 /* ================= 오른쪽 패널 ================= */
 function renderPanel(){if(mode==='detail')return renderDetail();if(mode==='edit'&&draft)return renderEdit();mode='dash';renderDash()}
 function renderDash(){
+  listMore=0;   // 조건이 바뀌면 목록은 다시 앞부분부터
   const p=$('#panel');const vis=visible();
   const zb=buildings.filter(inZone);
   const g=zb.reduce((s,b)=>s+(+b.gfa||0),0),st=zb.reduce((s,b)=>s+staffTotal(b),0),withFM=zb.filter(hasFM).length;
@@ -848,7 +930,7 @@ function renderDash(){
   if(none)rows.push({name:'__none',n:none,roles:[]});
   const mx=100;   // 막대 기준: 100곳 = 가득 (넘으면 가득 채움)
   p.innerHTML=`<div class="pad">
-    <h2 style="margin-top:0">${esc(ZNAME[zone])}</h2>
+    <h2 style="margin-top:0">${esc(scopeName())}</h2>
     <div class="kpis" style="margin-top:10px">
       <div class="kpi"><b>${zb.length}</b><span>빌딩</span></div>
       <div class="kpi"><b>${g/PY>=10000?(g/PY/10000).toFixed(1)+'만':n0(g/PY)}</b><span>연면적(평)</span></div>
@@ -874,7 +956,7 @@ function renderDash(){
     <div id="blist">${listHtml(vis,zb)}</div>
     </div>
   </div>`;
-  const qi=$('#q');qi.oninput=()=>{query=qi.value;drawMarkers();refreshList()};   // 입력칸은 다시 그리지 않음 (한글 조합이 끊기지 않게)
+  const qi=$('#q');qi.oninput=()=>{query=qi.value;listMore=0;drawMarkers();refreshList()};   // 입력칸은 다시 그리지 않음 (한글 조합이 끊기지 않게)
   $('#miss').onchange=e=>{onlyMissing=e.target.checked;drawMarkers();renderDash()};
   $('#bidonly').onchange=e=>{bidOnly=e.target.checked;drawMarkers();renderDash();if(bidOnly)fitZone()};
   $('#bidany').onchange=e=>{bidAny=e.target.checked;drawMarkers();renderDash();if(bidAny)fitZone()};
@@ -888,11 +970,14 @@ function renderDash(){
 }
 function filtChip(n){if(!query&&!onlyMissing&&!bidOnly&&!bidAny&&stageF==='all'&&!myOnly)return '';const t=[query?`‘${esc(query)}’`:'',onlyMissing?'관리사 미입력':'',bidOnly?'입찰 진행 중':'',bidAny?'입찰 이력 있음':'',stageF!=='all'?(stageF==='none'?'영업 단계 미지정':'영업 '+esc(SLBL[stageF])):'',myOnly?'내 담당':''].filter(Boolean).join(' · ');
   return `<div class="filt"><span>${t} 빌딩만 보는 중 · ${n}곳</span><button type="button" class="btn" data-clr>✕ 전체 보기</button></div>`}
-function listHtml(vis,zb){return filtChip(vis.length)+(vis.length?`<ul class="list">${vis.map(b=>`<li><button data-id="${esc(b.id)}"><span class="nm">${esc(b.name)}${stageTag(b)}${b.is_public?'<span class="pubtag">공공</span>':''}${bidOpenOf(b.id).length?' <span class="dday">입찰 '+bidOpenOf(b.id).length+'</span>':(bidDoneOf(b.id).length?' <span class="dday end">입찰 마감 '+bidDoneOf(b.id).length+'</span>':'')}</span>
+function listHtml(vis,zb){const cap=LIST_MAX*(1+listMore);const shown=vis.slice(0,cap);
+  return filtChip(vis.length)+(vis.length?`<ul class="list">${shown.map(b=>`<li><button data-id="${esc(b.id)}"><span class="nm">${esc(b.name)}${stageTag(b)}${b.is_public?'<span class="pubtag">공공</span>':''}${bidOpenOf(b.id).length?' <span class="dday">입찰 '+bidOpenOf(b.id).length+'</span>':(bidDoneOf(b.id).length?' <span class="dday end">입찰 마감 '+bidDoneOf(b.id).length+'</span>':'')}</span>
       <span class="num">${fmtPy(b.gfa)}${staffTotal(b)?'<br><small>'+staffTotal(b)+'명</small>':''}</span>
-      <span class="sub">${hasPos(b)?'':'<span class="flag">위치 없음</span> · '}${esc(b.district||'')}${zone==='all'&&b.zone?' · '+esc(ZNAME[b.zone]||''):''} · ${hasFM(b)?mgmtCos(b).map(o=>esc(o.name)+'<small>('+esc(roleTxt(o.roles))+')</small>').join(', '):'<span class="flag">관리사 미입력</span>'}</span></button></li>`).join('')}</ul>`
-      :`<div class="hint" style="padding:16px 0">${zb.length?'조건에 맞는 빌딩이 없어요.':'이 권역에 등록된 빌딩이 없어요.'}</div>`)}
+      <span class="sub">${hasPos(b)?'':'<span class="flag">위치 없음</span> · '}${esc(b.district||'')}${zone==='all'&&(b.zone||b.region)?' · '+esc(b.zone?ZNAME[b.zone]:b.region):''} · ${hasFM(b)?mgmtCos(b).map(o=>esc(o.name)+'<small>('+esc(roleTxt(o.roles))+')</small>').join(', '):'<span class="flag">관리사 미입력</span>'}</span></button></li>`).join('')}</ul>`
+      +(vis.length>cap?`<div style="padding:10px 18px"><button class="btn" type="button" data-more>외 ${vis.length-cap}곳 더 보기</button></div>`:'')
+      :`<div class="hint" style="padding:16px 0">${zb.length?'조건에 맞는 빌딩이 없어요.':'여기에 등록된 빌딩이 없어요.'}</div>`)}
 function bindList(root){root.querySelectorAll('.list [data-id]').forEach(b=>b.onclick=()=>openDetail(b.dataset.id,true));
+  root.querySelectorAll('[data-more]').forEach(b=>b.onclick=()=>{listMore++;refreshList()});
   root.querySelectorAll('[data-clr]').forEach(b=>b.onclick=()=>{query='';onlyMissing=false;bidOnly=false;bidAny=false;stageF='all';myOnly=false;drawMarkers();renderDash();fitZone()})}
 function refreshList(){const el=$('#blist');if(!el)return renderDash();el.innerHTML=listHtml(visible(),buildings.filter(inZone));bindList(el)}
 function openDetail(id,fly){
@@ -916,7 +1001,7 @@ async function renderDetail(){
   const m3=(()=>{const x=box(b);return {n:FACES.filter(([k])=>x.faces[k]).length,vw:x.vw}})();
   const fl=[b.floors_above?`지상 ${b.floors_above}층`:'',b.floors_below?`지하 ${b.floors_below}층`:''].filter(Boolean).join(' / ');
   p.innerHTML=`<div class="pad">
-    <button class="back" id="back">← ${esc(ZNAME[zone])}</button>
+    <button class="back" id="back">← ${esc(scopeName())}</button>
     <div class="phtabs" role="tablist"><button type="button" role="tab" data-pt="photo" aria-selected="${tab==='photo'}">사진 ${ph.length}</button><button type="button" role="tab" data-pt="rv" aria-selected="${tab==='rv'}">로드뷰</button>${hasPos(b)?`<a href="https://map.kakao.com/link/roadview/${+b.lat},${+b.lng}" target="_blank" rel="noopener noreferrer">카카오맵에서 크게 ↗</a>`:''}</div>
     <div class="photo" id="ph">${tab==='rv'?(hasPos(b)?`<iframe src="${esc('roadview.html#'+(+b.lat)+','+(+b.lng)+','+encodeURIComponent(b.name||''))}" title="${esc(b.name)} 로드뷰" allowfullscreen></iframe>`:'위치가 없어 로드뷰를 볼 수 없어요'):(ph.length?'사진 불러오는 중…':'등록된 사진이 없어요')}</div>
     <div class="phsrc" id="phsrc"></div>
@@ -1012,9 +1097,9 @@ async function renderEdit(){
     <div class="f"><label for="name">빌딩명 *</label><input id="name" name="name" maxlength="120" value="${val(d.name)}"></div>
     <div class="f"><label for="address">주소</label><div style="display:flex;gap:6px"><input id="address" name="address" maxlength="200" value="${val(d.address)}" placeholder="예: 서울 중구 세종대로 136"><button class="btn" id="geo" type="button" style="white-space:nowrap">위치 찾기</button></div>
       <div class="hint" id="gst">${esc(d._geoMsg||'')}</div></div>
-    <div class="g2"><div class="f"><label for="region">시도</label><select id="region" name="region">${['','서울','경기','인천'].map(r=>`<option ${r===(d.region||'')?'selected':''}>${r}</option>`).join('')}</select></div>
+    <div class="g2"><div class="f"><label for="region">시도</label><select id="region" name="region">${sidoOptions(d.region).map(r=>`<option ${r===(d.region||'')?'selected':''}>${esc(r)}</option>`).join('')}</select></div>
       <div class="f"><label for="district">시군구</label><input id="district" name="district" value="${val(d.district)}"></div></div>
-    <div class="f"><label for="zone">권역</label><select id="zone" name="zone"><option value="auto" ${d.zoneAuto?'selected':''}>자동 (시군구 기준)</option>${ZONES.filter(z=>z.id!=='all').map(z=>`<option value="${z.id}" ${!d.zoneAuto&&d.zone===z.id?'selected':''}>${esc(z.name)}</option>`).join('')}</select></div>
+    <div class="f"><label for="zone">권역</label><select id="zone" name="zone"><option value="auto" ${d.zoneAuto?'selected':''}>자동 (시군구 기준)</option>${(SUB_FIXED[d.region]||[]).map(id=>`<option value="${id}" ${!d.zoneAuto&&d.zone===id?'selected':''}>${esc(ZNAME[id])}</option>`).join('')}</select>${SUB_FIXED[d.region]?'':'<div class="hint">서울·경기·인천이 아니면 권역 대신 시군구로 구분해요.</div>'}</div>
     <div class="g2"><div class="f"><label for="gfa_m2">연면적(㎡)</label><input id="gfa_m2" name="gfa_m2" inputmode="decimal" value="${val(d.gfa)}"></div>
       <div class="f"><label for="gfa_py">연면적(평)</label><input id="gfa_py" inputmode="decimal" value="${d.gfa?Math.round(d.gfa/PY):''}"></div></div>
     <div class="g3"><div class="f"><label for="fa">지상층</label><input id="fa" name="fa" inputmode="numeric" value="${val(d.floors_above)}"></div>
@@ -1067,6 +1152,7 @@ async function renderEdit(){
   if($('#pfWeb'))$('#pfWeb').onclick=()=>{collect();openPhotoFinder([d.id],d)};
   const m3in=()=>{collect();const a=draft.model3d.az;$('#azv').textContent=`${a}° ${dirName(a)}`;syncBoxes()};
   for(const id of ['m3_w','m3_d','m3_h','m3_az','fa','fb','gfa_m2'])$('#'+id).addEventListener('input',m3in);
+  $('#region').onchange=()=>{collect();renderEdit()};   // 시도가 바뀌면 권역 선택지도 바꿔 줘요
   p.querySelectorAll('input[data-face]').forEach(el=>el.onchange=()=>{const fl=el.files[0];if(fl)addFacade(el.dataset.face,fl)});
   p.querySelectorAll('[data-fdel]').forEach(el=>el.onclick=()=>{collect();delete draft.model3d.faces[el.dataset.fdel];syncBoxes();renderEdit()});
   facadeThumbs(d);
@@ -1381,7 +1467,7 @@ function openBidList(tab){
     const T=[['open','진행 중',x=>bidIsOpen(x)&&!x.hidden],['ended','마감',x=>bidDone(x)&&!x.hidden],['new','최근 7일 신규',x=>bidIsNew(x)&&!x.hidden],['won','낙찰 결과',x=>!!x.bids.winner&&!x.hidden],['all','전체',x=>!x.hidden]];
     if(canEdit())T.push(['hidden','숨긴 공고',x=>x.hidden]);
     const cur=T.find(t=>t[0]===bidTab)||T[0];const list=L.filter(cur[2]).sort(bidSort);
-    const m=modal(`<h2>나라장터 입찰 · ${esc(ZNAME[zone])}</h2>
+    const m=modal(`<h2>나라장터 입찰 · ${esc(scopeName())}</h2>
       <p class="hint" style="margin:0">등록된 빌딩 이름(또는 빌딩별 입찰 검색어)이 공고명에 들어간 시설관리 관련 용역 공고만 모았어요. 공고명을 누르면 나라장터 상세로 가요.</p>
       <div class="tabs">${T.map(t=>`<button class="zone" type="button" data-tab="${t[0]}" aria-pressed="${t[0]===cur[0]}">${t[1]} <small>${L.filter(t[2]).length}</small></button>`).join('')}</div>
       ${list.length?`<ul class="bids">${list.map(x=>bidItem(x,true)).join('')}</ul>`:'<p class="hint">해당하는 공고가 없어요.</p>'}
@@ -1642,7 +1728,7 @@ function openSalesList(tab){
     :salesTab==='exp'
     ?(exp.length?`<ul class="todo">${exp.map(x=>`<li><button class="bn" type="button" data-sb="${esc(x.b.id)}">${esc(x.b.name)}${stageTag(x.b)}</button><span class="d ${dCls(x.n)}">${ddayTxt(x.n)}</span><span class="m">${esc(fmtD(x.c.d))} 만료${x.c.sure?'':' (추정 · '+esc(x.c.how)+')'}${mgmtCos(x.b).length?' · 현재 '+esc(mgmtCos(x.b).map(o=>o.name).join(', ')):''}</span></li>`).join('')}</ul>`:'<p class="hint">만료 예정 정보가 없어요. 낙찰 결과가 쌓이면 자동으로 추정해요.</p>')
     :(byStage.length?`<ul class="todo">${byStage.map(b=>`<li><button class="bn" type="button" data-sb="${esc(b.id)}">${esc(b.name)}${stageTag(b)}</button><span class="d">${esc(sales[b.id].owner_id?names[sales[b.id].owner_id]||'':'담당 없음')}</span><span class="m">${esc(sales[b.id].next_action||'')}${sales[b.id].next_date?' · '+esc(sales[b.id].next_date):''}${mgmtCos(b).length?' · 현재 '+esc(mgmtCos(b)[0].name):''}</span></li>`).join('')}</ul>`:'<p class="hint">영업 단계를 지정한 빌딩이 없어요.</p>');
-  const m=modal(`<h2>영업 현황 · ${esc(ZNAME[zone])}</h2>
+  const m=modal(`<h2>영업 현황 · ${esc(scopeName())}</h2>
     <p class="hint" style="margin:0">빌딩 이름을 누르면 상세로 가서 단계·담당자·활동 기록을 고칠 수 있어요. 계약 만료일은 직접 입력한 값이 없으면 나라장터 낙찰 공고로 추정해요.</p>
     <div class="tabs">${T.map(t=>`<button class="zone" type="button" data-stab="${t[0]}" aria-pressed="${t[0]===salesTab}">${t[1]} <small>${t[2]}</small></button>`).join('')}</div>
     ${body}
@@ -1998,7 +2084,7 @@ function exportCsv(){
     (()=>{const c=contractEnd(b);return c?fmtD(c.d):''})(),(()=>{const c=contractEnd(b);return c?(c.sure?'':'추정 · ')+c.how:''})()]);
   const cell=x=>{x=String(x??'');if(/^[=+\-@]/.test(x))x="'"+x;return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x};
   const csv='\ufeff'+[head,...rows].map(r=>r.map(cell).join(',')).join('\n');
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`빌딩정보_${ZNAME[zone]}_${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`빌딩정보_${scopeName().replace(/ · /g,'_')}_${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 </script>
 </body>
