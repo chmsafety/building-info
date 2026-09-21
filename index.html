@@ -371,6 +371,11 @@ function autoZone(region,district){
    시도 안의 세부 구분: 서울·경기·인천은 기존 권역 그대로, 그 밖의 시도는 시군구로 나눠요. */
 const SIDO_STD=['서울','경기','인천','부산','대구','광주','대전','울산','세종','강원','충북','충남','전북','전남','경북','경남','제주'];
 const SUB_FIXED={'서울':['CBD','GBD','YBD','MAGOK','SEOUL_ETC'],'경기':['BUNDANG','GG_ETC'],'인천':['INCHEON']};
+/* 건축물대장 가져오기에서 쓰는 시도 코드(법정동 코드 앞 2자리) */
+const IMP_SIDO=[['11','서울'],['41','경기'],['28','인천'],['26','부산'],['27','대구'],['29','광주'],['30','대전'],
+  ['31','울산'],['36','세종'],['51','강원'],['43','충북'],['44','충남'],['52','전북'],['46','전남'],['47','경북'],
+  ['48','경남'],['50','제주']];
+const IMP_METRO=['11','41','28'];
 const ZORDER=['CBD','GBD','YBD','MAGOK','SEOUL_ETC','BUNDANG','GG_ETC','INCHEON'];
 const BIG_TOTAL=3000;      // 전국 빌딩이 이보다 많으면 앱을 열 때 시도 하나만 불러와요
 let REGIONS=[];            // [{region,n}] — region_counts() 결과. 없으면 빈 배열(= 예전처럼 전체 로드)
@@ -1817,12 +1822,19 @@ let impStop=false;
 function openImport(){
   const m=modal(`<h2>건축물대장에서 빌딩 가져오기</h2>
     <p class="hint" style="margin:0">국토교통부 건축HUB 건축물대장(표제부)에서 주용도가 <b>업무시설</b> 또는 <b>방송통신시설</b>(방송국·언론사 사옥 등)인 건물을 필지 단위로 묶어, 연면적이 기준 이상이면 빌딩 목록에 등록해요. 이미 있는 빌딩은 건너뛰어요 — 주소가 같거나, 30m 이내이거나, 70m 이내이면서 이름이 비슷한 경우. 70m 이내라도 이름이 다르면 등록하고 로그에 ‘가까움’으로 알려 줘요. 좌표는 카카오 주소 검색으로 찾아요.</p>
-    <div class="g3" style="grid-template-columns:auto auto auto 1fr;gap:10px;align-items:end;margin-top:12px">
-      <label class="keep" style="margin:0"><input type="checkbox" id="im11" checked> 서울</label>
-      <label class="keep" style="margin:0"><input type="checkbox" id="im41" checked> 경기</label>
-      <label class="keep" style="margin:0"><input type="checkbox" id="im28" checked> 인천</label>
-      <div><label for="imMin">등록 기준 연면적</label><select id="imMin"><option value="5000">5천평(16,529㎡) 이상</option><option value="10000" selected>1만평(33,058㎡) 이상</option><option value="20000">2만평 이상</option><option value="30000">3만평 이상</option></select></div>
+    <div style="margin-top:12px"><label>가져올 지역</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 6px">
+        <button class="btn" type="button" data-rq="all" style="padding:3px 10px;font-size:12px">전국</button>
+        <button class="btn" type="button" data-rq="metro" style="padding:3px 10px;font-size:12px">수도권만</button>
+        <button class="btn" type="button" data-rq="none" style="padding:3px 10px;font-size:12px">모두 해제</button>
+        <span class="hint" id="imRn" style="align-self:center"></span>
+      </div>
+      <div id="imR" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:2px 8px">
+        ${IMP_SIDO.map(([c,n])=>`<label class="keep" style="margin:0"><input type="checkbox" data-r="${c}" ${IMP_METRO.includes(c)?'checked':''}> ${n}</label>`).join('')}
+      </div>
+      <div class="hint" style="margin-top:6px">전국을 한 번에 훑으면 API 일일 한도(1만 건) 때문에 열흘 넘게 걸려요. 며칠에 나눠 하거나 시도별로 끊어서 하세요.</div>
     </div>
+    <div style="margin-top:10px"><label for="imMin">등록 기준 연면적</label><select id="imMin"><option value="5000">5천평(16,529㎡) 이상</option><option value="10000" selected>1만평(33,058㎡) 이상</option><option value="20000">2만평 이상</option><option value="30000">3만평 이상</option></select></div>
     <div style="margin-top:10px"><label for="imKind">가져올 건물</label><select id="imKind"><option value="office">오피스 빌딩 (업무·방송통신시설, 민간·공공 모두)</option><option value="public">공공청사만 (시청·구청·공공기관 사옥·우체국·법원 등)</option></select>
       <div class="hint" id="imKindH"></div></div>
     <label class="keep"><input type="checkbox" id="imSkip" checked> 이미 끝낸 시군구는 건너뛰기</label>
@@ -1832,6 +1844,16 @@ function openImport(){
     <div class="note" id="imLog" style="max-height:260px;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:11.5px">대기 중</div>`);
   const log=t=>{const el=m.querySelector('#imLog');if(el.textContent==='대기 중')el.textContent='';el.textContent+=t+'\n';el.scrollTop=el.scrollHeight};
   let running=false;const keep=setInterval(()=>{if(running)lastAct=Date.now()},60000);
+  /* 지역 빠른 선택 + 고른 수 표시 */
+  const imBoxes=()=>[...m.querySelectorAll('#imR [data-r]')];
+  const imCount=()=>{const n=imBoxes().filter(x=>x.checked).length;
+    m.querySelector('#imRn').textContent=n?`${n}개 시도 선택됨`:'선택된 지역이 없어요';};
+  m.querySelectorAll('[data-rq]').forEach(b=>b.onclick=()=>{
+    const q=b.dataset.rq;
+    imBoxes().forEach(x=>x.checked = q==='all' ? true : q==='metro' ? IMP_METRO.includes(x.dataset.r) : false);
+    imCount();});
+  imBoxes().forEach(x=>x.onchange=imCount);
+  imCount();
   m.querySelector('#imX').onclick=()=>{if(running){impStop=true}closeModal();if(running)toast('가져오기를 멈췄어요. 다시 열어 이어서 할 수 있어요.')};
   m.querySelector('#imStop').onclick=()=>{impStop=true;log('— 멈추는 중 (지금 처리 중인 구간까지 마무리)')};
   const kindSel=m.querySelector('#imKind'),kindH=m.querySelector('#imKindH');
@@ -1847,7 +1869,8 @@ function openImport(){
   m.querySelector('#imGo').onclick=async()=>{
     if(running)return;running=true;impStop=false;
     const go=m.querySelector('#imGo'),st=m.querySelector('#imStop');go.disabled=true;st.disabled=false;
-    const regions=['11','41','28'].filter(r=>m.querySelector('#im'+r).checked);const kind=kindSel.value;
+    const regions=[...m.querySelectorAll('#imR [data-r]')].filter(x=>x.checked).map(x=>x.dataset.r);const kind=kindSel.value;
+    if(!regions.length){log('✖ 가져올 지역을 하나 이상 고르세요.');running=false;go.disabled=false;st.disabled=true;return}
     const minArea=Math.round(+m.querySelector('#imMin').value*PY);const skip=m.querySelector('#imSkip').checked;
     let tot={ins:0,found:0,dup:0,nogeo:0,calls:0,flag:0},zero=[],nearAll=[],oddAll=[];
     try{
