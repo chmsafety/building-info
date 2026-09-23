@@ -942,9 +942,9 @@ function renderDash(){
       <div class="kpi"><b>${n0(st)}</b><span>관리 인력</span></div>
       <div class="kpi"><b>${zb.length?Math.round(withFM/zb.length*100):0}%</b><span>관리사 입력</span></div>
     </div>
+    ${fmBox(zb)}
     ${salesBox(zb)}
     ${bidBox(zb)}
-    ${fmBox(zb)}
     <h3 class="ch">${h3Btn('cos','관리회사별 빌딩 수')} <span class="hint">(시설·보안·미화 · ${rows.filter(r=>r.name!=='__none').length}개사)</span></h3>
     <div class="${isOpen('cos')?'':'hidden'}">
     ${rows.length?`<div class="bars cos">${rows.map(r=>`<button type="button" class="barrow${(r.name==='__none'?onlyMissing&&!query:query===r.name)?' on':''}" data-co="${esc(r.name==='__none'?'':r.name)}" title="${esc(r.name==='__none'?'미입력':r.name+' ('+roleTxt(r.roles)+')')}"><span class="nm">${r.name==='__none'?'<span class="flag">미입력</span>':esc(r.name)+(r.roles.length?' <small class="hint">'+esc(roleTxt(r.roles))+'</small>':'')}</span><div class="bar"><i class="${r.name==='__none'?'none':''}" style="width:${Math.min(100,r.n/mx*100)}%"></i></div><span class="n">${r.n}</span></button>`).join('')}</div>
