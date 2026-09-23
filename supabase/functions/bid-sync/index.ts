@@ -256,9 +256,9 @@ Deno.serve(async (req) => {
   const db = createClient(url, SERVICE_KEY, { auth: { persistSession: false } });
   if (b.action === "daily") {
     // 매일 자동 확인(pg_cron)은 로그인 없이 부름. 어제·오늘 공고만 다시 읽는 일이라 정보가 새지 않고,
-    // 남용을 막으려고 3시간 안에 이미 돌았으면 건너뜀.
+    // 남용을 막으려고 2시간 안에 이미 돌았으면 건너뜀. (2026-09-24: 하루 3번 10:30·14:30·17:30 확인에 맞춰 3→2시간)
     const { data: lastRun } = await db.from("bid_runs").select("at").eq("mode", "daily").order("at", { ascending: false }).limit(1);
-    if (lastRun?.[0] && Date.now() - new Date(lastRun[0].at).getTime() < 3 * 3600e3) return json({ ok: true, skipped: "recent" });
+    if (lastRun?.[0] && Date.now() - new Date(lastRun[0].at).getTime() < 2 * 3600e3) return json({ ok: true, skipped: "recent" });
   } else {
     const caller = createClient(url, ANON_KEY, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
     const { data: role } = await caller.rpc("my_role");
