@@ -177,6 +177,7 @@ h3{font-size:13px;color:var(--ink2);font-weight:600;margin:20px 0 8px;padding-bo
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .toolbar input{flex:1;min-width:140px}
 .list{list-style:none;margin:10px -18px 0;padding:0}
+.sbox .list{margin:10px -12px -10px}.sbox .list button{padding:10px 12px}.sbox .list li:last-child button{border-radius:0 0 10px 10px}
 .list button{width:100%;text-align:left;display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 18px;border:0;border-top:1px solid var(--line);background:none}
 .list button:hover{background:var(--bg)}
 .list .nm{font-weight:600}.list .sub{font-size:12px;color:var(--ink2)}
@@ -948,13 +949,13 @@ function renderDash(){
     ${fmBox(zb)}
     ${salesBox(zb)}
     ${bidBox(zb)}
-    <h3 class="ch">${h3Btn('cos','관리회사별 빌딩 수')} <span class="hint">(시설·보안·미화 · ${rows.filter(r=>r.name!=='__none').length}개사)</span></h3>
-    <div class="${isOpen('cos')?'':'hidden'}">
+    <div class="sbox"><div class="hd">${hdBtn('cos','관리회사별 빌딩 수')}<span class="hint">시설·보안·미화 · ${rows.filter(r=>r.name!=='__none').length}개사</span></div>
+    <div class="${isOpen('cos')?'':'hidden'}" style="margin-top:8px">
     ${rows.length?`<div class="bars cos">${rows.map(r=>`<button type="button" class="barrow${(r.name==='__none'?onlyMissing&&!query:query===r.name)?' on':''}" data-co="${esc(r.name==='__none'?'':r.name)}" title="${esc(r.name==='__none'?'미입력':r.name+' ('+roleTxt(r.roles)+')')}"><span class="nm">${r.name==='__none'?'<span class="flag">미입력</span>':esc(r.name)+(r.roles.length?' <small class="hint">'+esc(roleTxt(r.roles))+'</small>':'')}</span><div class="bar"><i class="${r.name==='__none'?'none':''}" style="width:${Math.min(100,r.n/mx*100)}%"></i></div><span class="n">${r.n}</span></button>`).join('')}</div>
     <div class="hint" style="margin-top:4px">회사를 누르면 아래 목록이 그 회사 빌딩으로 좁혀지고, 한 번 더 누르거나 ‘전체 보기’를 누르면 돌아와요. 한 빌딩에 시설·보안·미화 회사가 다르면 각 회사에 모두 세요.</div>`:'<div class="hint">빌딩이 없어요.</div>'}
-    </div>
-    <h3 class="ch">${h3Btn('list','빌딩 목록')} <span class="hint">${vis.length}곳</span></h3>
-    <div class="${isOpen('list')?'':'hidden'}">
+    </div></div>
+    <div class="sbox"><div class="hd">${hdBtn('list','빌딩 목록')}<span class="hint">${vis.length}곳</span></div>
+    <div class="${isOpen('list')?'':'hidden'}" style="margin-top:8px">
     <div class="toolbar"><input id="q" placeholder="빌딩명·주소·관리사 검색" value="${esc(query)}" aria-label="검색">
       ${canEdit()?'<button class="btn pri" id="add">빌딩 추가</button>':''}</div>
     <div style="display:flex;gap:16px;flex-wrap:wrap"><label class="keep" style="margin-top:8px"><input type="checkbox" id="miss" ${onlyMissing?'checked':''}> 관리사 미입력만</label>
@@ -962,7 +963,7 @@ function renderDash(){
     <label class="keep" style="margin-top:8px"><input type="checkbox" id="bidany" ${bidAny?'checked':''}> 입찰 이력 있는 빌딩만</label>
     <label class="keep" style="margin-top:8px"><input type="checkbox" id="myonly" ${myOnly?'checked':''}> 내 담당만</label></div>
     <div id="blist">${listHtml(vis,zb)}</div>
-    </div>
+    </div></div>
   </div>`;
   const qi=$('#q');qi.oninput=()=>{query=qi.value;listMore=0;drawMarkers();refreshList()};   // 입력칸은 다시 그리지 않음 (한글 조합이 끊기지 않게)
   $('#miss').onchange=e=>{onlyMissing=e.target.checked;drawMarkers();renderDash()};
@@ -1435,7 +1436,7 @@ function bidBox(zb){
   const ids=new Set(zb.map(b=>b.id));const L=bidLinks.filter(x=>ids.has(x.building_id)&&!x.hidden);
   const open=L.filter(bidIsOpen),nw=L.filter(bidIsNew),won=L.filter(x=>x.bids.winner),done=L.filter(bidRecent);
   const nb=new Set(open.map(x=>x.building_id)).size;
-  const last=bidRun?`마지막 확인 ${new Date(bidRun.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}${bidRun.mode==='daily'?' (자동)':''}`:'아직 확인 기록이 없어요 · 매일 오전 7시·오후 6시 자동 확인';
+  const last=bidRun?`마지막 확인 ${new Date(bidRun.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}${bidRun.mode==='daily'?' (자동)':''}`:'아직 확인 기록이 없어요 · 매일 10:30·14:30·17:30 자동 확인';
   const sum=isOpen('bid')?esc(last)
     :[open.length?`진행 중 ${open.length}건 · ${nb}개 빌딩`:'진행 중인 입찰 없음',done.length?`최근 마감 ${done.length}`:'',nw.length?`신규 ${nw.length}`:''].filter(Boolean).join(' · ');
   return `<div class="bidbox ${open.length?'on':''}">
@@ -1508,7 +1509,7 @@ async function bidCall(body){
 }
 function openBidSync(){
   const m=modal(`<h2>나라장터 입찰 가져오기</h2>
-    <p class="hint" style="margin:0">조달청 나라장터의 <b>용역</b> 입찰공고를 날짜별로 읽어, 공고명에 등록된 빌딩 이름(또는 빌딩별 입찰 검색어·발주기관명)이 들어간 공고만 빌딩에 연결해요. 공고의 지역과 빌딩의 시도가 <b>확실히 다르면 연결하지 않아요</b>(전국에 같은 이름 빌딩이 많아서요). 개찰이 끝난 공고는 낙찰자를 확인해 <b>관리사 검토 대기</b>로 올려 줘요. 평소에는 매일 오전 7시·오후 6시에 자동으로 확인하니, 여기서는 처음 한 번 지난 기간을 채우거나 검색어를 바꾼 뒤 다시 확인할 때 쓰세요.</p>
+    <p class="hint" style="margin:0">조달청 나라장터의 <b>용역</b> 입찰공고를 날짜별로 읽어, 공고명에 등록된 빌딩 이름(또는 빌딩별 입찰 검색어·발주기관명)이 들어간 공고만 빌딩에 연결해요. 공고의 지역과 빌딩의 시도가 <b>확실히 다르면 연결하지 않아요</b>(전국에 같은 이름 빌딩이 많아서요). 개찰이 끝난 공고는 낙찰자를 확인해 <b>관리사 검토 대기</b>로 올려 줘요. 평소에는 매일 10시 30분·오후 2시 30분·5시 30분에 자동으로 확인하니, 여기서는 처음 한 번 지난 기간을 채우거나 검색어를 바꾼 뒤 다시 확인할 때 쓰세요.</p>
     <div class="g2" style="margin-top:12px;align-items:end">
       <div><label for="bdDays">기간</label><select id="bdDays"><option value="7">최근 7일</option><option value="30" selected>최근 30일</option><option value="90">최근 90일</option><option value="180">최근 180일</option><option value="365">최근 1년 (관리사 파악용)</option></select></div>
       <label class="keep" style="margin:0 0 10px"><input type="checkbox" id="bdFm" checked> 시설관리 관련 공고만 (청소·경비·설비 등)</label>
@@ -1584,7 +1585,7 @@ const phoneTxt=p=>String(p||'').replace(/^(\d{3})(\d{3,4})(\d{4})$/,'$1-$2-$3');
 function openSmsAlert(){
   if(!isAdmin())return;
   const m=modal(`<h2>입찰 문자 알림</h2>
-    <p class="hint" style="margin:0">등록 빌딩과 연결된 나라장터 공고가 <b>새로 잡히거나</b>, <b>마감이 다가오거나</b>, <b>낙찰자가 확인되면</b> 아래 사람들에게 문자를 보내요. 매일 오전 7시 15분·오후 6시 15분(입찰 자동 확인 직후)에 한 번에 모아 보내고, 같은 공고·같은 알림은 두 번 보내지 않아요.</p>
+    <p class="hint" style="margin:0">등록 빌딩과 연결된 나라장터 공고가 <b>새로 잡히거나</b>, <b>마감이 다가오거나</b>, <b>낙찰자가 확인되면</b> 아래 사람들에게 문자를 보내요. 매일 10시 30분·오후 2시 30분·5시 30분에 입찰을 확인하고 알릴 것이 있을 때만 한 번에 모아 보내고, 같은 공고·같은 알림은 두 번 보내지 않아요.</p>
     <h3>솔라피 연결</h3>
     <div id="smSt" class="hint">확인하는 중…</div>
     <details id="smKeyBox" style="margin-top:6px"><summary class="hint" style="cursor:pointer">솔라피 키 넣기 · 바꾸기</summary>
