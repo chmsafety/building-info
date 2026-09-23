@@ -129,3 +129,8 @@ end $$;
 -- 9) (2026-09-23 추가) 계정과 연결 — 계정 관리 표에서 계정별로 번호·수신을 설정
 alter table public.sms_recipients add column if not exists profile_id uuid references public.profiles(id) on delete cascade;
 create unique index if not exists sms_recipients_profile_idx on public.sms_recipients(profile_id);
+
+-- 10) (2026-09-24 변경) 입찰 확인 하루 3번 10:30·14:30·17:30(KST), 문자는 각 10분 뒤 — 알릴 것이 있을 때만 발송
+--   (bid-sync 의 '최근에 돌았으면 건너뜀' 기준도 3시간 → 2시간으로 바꿈)
+select cron.alter_job((select jobid from cron.job where jobname = 'bid-sync-daily'), schedule := '30 1,5,8 * * *');
+select cron.alter_job((select jobid from cron.job where jobname = 'bid-notify'),     schedule := '40 1,5,8 * * *');
