@@ -1599,6 +1599,7 @@ function openSmsAlert(){
       <label style="display:flex;gap:6px;align-items:center;margin:0">마감 임박 기준 <select id="smDue" style="width:auto">${[1,2,3,5,7].map(n=>`<option value="${n}">마감 ${n}일 전</option>`).join('')}</select></label>
     </div>
     <h3>받는 사람</h3>
+    <div class="hint" style="margin-bottom:6px">계정이 있는 사람은 <b>계정 관리</b> 표의 ‘입찰 문자’ 칸에서 번호를 넣고 ‘받기’를 켜도 돼요.</div>
     <div class="tbl" id="smList">불러오는 중…</div>
     <form onsubmit="return false" class="g3" style="grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-top:8px">
       <div><label for="smNm">이름</label><input id="smNm" maxlength="40"></div>
@@ -1644,7 +1645,7 @@ function openSmsAlert(){
     if(error){box.textContent='불러오지 못했어요: '+error.message;return}
     if(!data.length){box.innerHTML='<p class="hint">아직 받는 사람이 없어요. 아래에서 추가하세요.</p>';return}
     box.innerHTML=`<table><thead><tr><th>이름</th><th>휴대폰</th><th>새 공고</th><th>마감 임박</th><th>낙찰</th><th>사용</th><th></th></tr></thead><tbody>${data.map(r=>`<tr data-rid="${r.id}">
-      <td>${esc(r.name)}</td><td style="white-space:nowrap">${esc(phoneTxt(r.phone))}</td>
+      <td>${esc(r.name)}${r.profile_id?' <span class="hint">(계정)</span>':''}</td><td style="white-space:nowrap">${esc(phoneTxt(r.phone))}</td>
       ${['on_new','on_due','on_win','active'].map(k=>`<td><input type="checkbox" data-f="${k}" ${r[k]?'checked':''} aria-label="${k}" style="width:auto"></td>`).join('')}
       <td style="white-space:nowrap"><button class="btn" type="button" data-t style="padding:3px 8px;font-size:12px">시험 문자</button> <button class="btn warn" type="button" data-d style="padding:3px 8px;font-size:12px">삭제</button></td></tr>`).join('')}</tbody></table>`;
     box.querySelectorAll('tr[data-rid]').forEach(tr=>{
@@ -2175,20 +2176,51 @@ async function openAdmin(){
 async function loadUsers(m){
   const box=m.querySelector('#ulist');
   let users;try{users=(await adminCall({action:'list'})).users}catch(x){box.textContent='불러오지 못했어요: '+x.message;return}
-  box.innerHTML=`<table><thead><tr><th>아이디</th><th>이름</th><th>권한</th><th>상태</th><th>마지막 로그인</th><th></th></tr></thead><tbody>${users.map(u=>`<tr data-id="${esc(u.id)}">
+  await loadSmsBy();
+  box.innerHTML=`<table><thead><tr><th>아이디</th><th>이름</th><th>권한</th><th>상태</th><th>마지막 로그인</th><th>입찰 문자</th><th></th></tr></thead><tbody>${users.map(u=>`<tr data-id="${esc(u.id)}">
     <td>${esc(u.login_id)}</td><td>${esc(u.name)}</td>
     <td><select data-act="role" ${u.id===me.id?'disabled':''}>${['viewer','editor','admin'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${{viewer:'조회자',editor:'편집자',admin:'관리자'}[r]}</option>`).join('')}</select></td>
     <td>${u.active?'사용':'<span class="flag">중지</span>'}${u.must_change_pw?' <span class="hint">(임시 비번)</span>':''}</td>
     <td class="hint">${u.last_login_at?esc(new Date(u.last_login_at).toLocaleString('ko-KR')):'—'}</td>
+    ${smsCell(u)}
     <td style="white-space:nowrap">${u.id===me.id?'<span class="hint">본인</span>':`<button class="btn" data-act="active">${u.active?'중지':'재사용'}</button> <button class="btn" data-act="reset">비번 초기화</button>`}</td></tr>`).join('')}</tbody></table>
     <div class="err" id="ulErr"></div>`;
   const err=box.querySelector('#ulErr');
   box.querySelectorAll('tr[data-id]').forEach(tr=>{
     const id=tr.dataset.id,u=users.find(x=>x.id===id);
     tr.querySelector('[data-act="role"]').onchange=async e=>{try{await adminCall({action:'update',id,role:e.target.value});toast('권한을 바꿨어요')}catch(x){err.textContent=x.message;loadUsers(m)}};
+    bindSmsCell(tr,u,err);
     const ab=tr.querySelector('[data-act="active"]');if(ab)ab.onclick=async()=>{try{await adminCall({action:'update',id,active:!u.active});loadUsers(m)}catch(x){err.textContent=x.message}};
     const rb=tr.querySelector('[data-act="reset"]');if(rb)rb.onclick=async()=>{const pw=tempPw();try{await adminCall({action:'reset_password',id,password:pw});err.style.color='var(--ok)';err.textContent=`${u.login_id} 임시 비밀번호: ${pw}`}catch(x){err.style.color='';err.textContent=x.message}};
   });
+}
+
+
+/* ================= 계정별 입찰 문자 수신 (계정 관리 표) =================
+   sms_recipients.profile_id 로 계정과 연결. 입찰 문자 알림 창의 받는 사람 목록과 같은 표예요. */
+let smsBy=null;   // 계정 id → 받는 사람 줄 (null = 문자 알림 칸이 없거나 못 읽음)
+async function loadSmsBy(){
+  const {data,error}=await sb.from('sms_recipients').select('*');
+  smsBy=error?null:Object.fromEntries((data||[]).filter(r=>r.profile_id).map(r=>[r.profile_id,r]));
+}
+function smsCell(u){
+  if(!smsBy)return '<td class="hint">—</td>';
+  const r=smsBy[u.id];
+  return `<td style="white-space:nowrap"><input data-act="sms-ph" inputmode="tel" placeholder="010-0000-0000" value="${esc(r?phoneTxt(r.phone):'')}" style="width:130px;padding:4px 6px" aria-label="${esc(u.name)} 휴대폰"> <label style="font-size:12px;color:var(--ink)"><input type="checkbox" data-act="sms-on" ${r&&r.active?'checked':''} style="width:auto"> 받기</label></td>`;
+}
+function bindSmsCell(tr,u,err){
+  const ph=tr.querySelector('[data-act="sms-ph"]'),on=tr.querySelector('[data-act="sms-on"]');if(!ph||!on)return;
+  const save=async()=>{
+    const r=smsBy[u.id],phone=ph.value.replace(/\D/g,'');err.style.color='';err.textContent='';
+    if(on.checked&&!/^01\d{8,9}$/.test(phone)){err.textContent=`${u.name}님 휴대폰 번호를 확인하세요 (예: 010-1234-5678).`;if(!r)on.checked=false;return}
+    let res;
+    if(r){const upd={active:on.checked,name:u.name};if(/^01\d{8,9}$/.test(phone))upd.phone=phone;res=await sb.from('sms_recipients').update(upd).eq('id',r.id).select().maybeSingle()}
+    else if(on.checked)res=await sb.from('sms_recipients').insert({profile_id:u.id,name:u.name,phone}).select().maybeSingle();
+    else return;
+    if(res.error||!res.data){err.textContent=res.error&&/duplicate|unique/i.test(res.error.message)?'이미 받는 사람 목록에 있는 번호예요. 입찰 문자 알림 창에서 그 줄을 지우고 다시 설정하세요.':'문자 수신 설정을 저장하지 못했어요'+(res.error?': '+res.error.message:'');if(!r)on.checked=false;return}
+    smsBy[u.id]=res.data;ph.value=phoneTxt(res.data.phone);toast(on.checked?`${u.name}님이 입찰 문자를 받아요`:`${u.name}님 입찰 문자를 껐어요`);
+  };
+  on.onchange=save;ph.onchange=()=>{if(smsBy[u.id]||on.checked)save()};
 }
 
 
