@@ -220,6 +220,33 @@ dl{display:grid;grid-template-columns:92px 1fr;gap:6px 12px;margin:0}dt{color:va
 .fmh .btns{display:flex;gap:8px;align-items:center;white-space:nowrap}
 .fmh .x{border:0;background:none;color:var(--ink2);font-size:11px;text-decoration:underline;padding:0}
 .fmh li.past .co{color:var(--ink2);font-weight:500}
+/* 빌딩 상세: 항목별 카드 */
+.dhead{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;margin-top:10px}
+.dhead h2{margin:0}.dhead .btn{flex:none;padding:5px 12px;font-size:12px}
+.dnav{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;gap:6px;margin:12px -18px 0;padding:8px 18px;background:var(--paper);border-bottom:1px solid var(--line);box-shadow:0 6px 10px -8px var(--sh2)}
+.dnav button{flex:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--paper);border-radius:99px;padding:4px 11px;font-size:12px;font-weight:500;color:var(--ink)}
+.dnav button i{width:8px;height:8px;border-radius:50%;background:var(--ac);flex:none}
+.dnav button:hover{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 8%,var(--paper))}
+.dsec{margin-top:14px;border:1px solid var(--cardline);border-left:4px solid var(--ac);border-radius:12px;background:var(--paper);overflow:hidden;scroll-margin-top:64px;
+  box-shadow:0 1px 2px var(--sh1),0 4px 12px var(--sh1)}
+.dsec-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px 7px 8px;background:color-mix(in srgb,var(--ac) 10%,var(--paper));border-bottom:1px solid color-mix(in srgb,var(--ac) 25%,var(--line))}
+.dsec.off .dsec-hd{border-bottom-color:transparent}
+.dsec-t{border:0;background:none;display:inline-flex;align-items:center;gap:9px;min-height:34px;padding:2px 8px 2px 2px;border-radius:9px;font-size:15px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+.dsec-t .ic{width:28px;height:28px;flex:none;border-radius:8px;background:var(--ac);color:#fff;display:inline-flex;align-items:center;justify-content:center}
+.dsec-t .ic svg{width:16px;height:16px}
+.dsec-t .cv{font-size:12px;color:var(--ink2);transition:transform .15s}
+.dsec.off .dsec-t .cv{transform:rotate(-90deg)}
+.dsec-t:hover{background:color-mix(in srgb,var(--ac) 12%,transparent)}
+.dsec-x{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dsec-x .dday{margin:0}
+.dchip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--paper);border:1px solid color-mix(in srgb,var(--ac) 35%,var(--line));color:var(--ink2);white-space:nowrap}
+.dchip.warn{background:var(--warn);border-color:var(--warn);color:var(--paper)}
+.dchip.ok{background:var(--ok);border-color:var(--ok);color:var(--paper)}
+.dsec-bd{padding:12px 14px 14px}
+.dsec-bd>:first-child{margin-top:0}
+.dsec-bd .fmh>li:first-child,.dsec-bd>.bids>li:first-child,.dsub+.bids>li:first-child{border-top:0}
+.dsub{font-size:12px;font-weight:700;color:var(--ink);margin:14px 0 6px;padding-top:10px;border-top:1px dashed var(--line)}
+.dsec-bd .note b{color:var(--ink)}
 form .f{display:grid;gap:4px;margin-bottom:10px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 10px}
 .stf{display:grid;grid-template-columns:44px 72px 1fr;gap:6px 8px;align-items:center;margin-bottom:6px}
@@ -274,6 +301,8 @@ td select{width:auto;padding:4px 6px}
   .zone{padding:5px 10px;font-size:12.5px}
   .zlbl{width:auto;font-size:11px;margin-right:2px}
   .bidk{grid-template-columns:repeat(2,1fr)}
+  aside{overflow:visible}
+  .dnav{margin:12px -18px 0}
 }
 </style>
 </head>
@@ -1008,6 +1037,39 @@ async function photoUrls(paths){
     for(const d of data||[])if(d.signedUrl)signed.set(d.path,{url:d.signedUrl,exp:now+3600000})}
   return paths.map(p=>signed.get(p)?.url||'');
 }
+/* ---------- 빌딩 상세: 항목별 카드(색 띠 + 아이콘 머리) · 바로가기 · 접기/펴기(기기에 기억) ---------- */
+const SEC_COL={basic:'#0E8A94',fm:'#2E90FA',staff:'#6172F3',hist:'#9E77ED',contract:'#DC6803',sales:'#12B76A',bid:'#D92D20',m3:'#0BA5EC',log:'#667085'};
+const SVG=d=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const SEC_IC={
+  basic:SVG('<rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2M10 21v-3h4v3"/>'),
+  fm:SVG('<path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3 17.8V21h3.2l6.3-6.3a4 4 0 0 0 5.2-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>'),
+  staff:SVG('<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.2a3 3 0 0 1 0 5.6M18 14.8c1.8.7 3 2.5 3 5.2"/>'),
+  hist:SVG('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>'),
+  contract:SVG('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>'),
+  sales:SVG('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),
+  bid:SVG('<path d="M4 10l9-5v14l-9-5z"/><path d="M13 7a5 5 0 0 1 0 10M8 15l1.5 5"/>'),
+  m3:SVG('<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>'),
+  log:SVG('<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>')
+};
+const SEC_SHORT={basic:'기본',fm:'시설관리',staff:'인력',hist:'업체 이력',contract:'계약',sales:'영업',bid:'입찰',m3:'3D',log:'변경 이력'};
+const dOpen=k=>OPEN['d_'+k]!==false;
+function dsec(k,title,body,extra){
+  const on=dOpen(k);
+  return `<section class="dsec${on?'':' off'}" id="sec-${k}" style="--ac:${SEC_COL[k]||'#667085'}">
+    <div class="dsec-hd"><button class="dsec-t" type="button" data-dsec="${k}" aria-expanded="${on}" aria-controls="secb-${k}" title="${on?'접기':'펼치기'}"><span class="ic">${SEC_IC[k]||''}</span><span>${title}</span><span class="cv" aria-hidden="true">▾</span></button>${extra?`<span class="dsec-x">${extra}</span>`:''}</div>
+    <div class="dsec-bd${on?'':' hidden'}" id="secb-${k}">${body}</div>
+  </section>`;
+}
+function setDsec(sec,on){
+  const k=sec.id.slice(4);OPEN['d_'+k]=on;saveOpen();
+  sec.classList.toggle('off',!on);sec.querySelector('.dsec-bd').classList.toggle('hidden',!on);
+  const t=sec.querySelector('[data-dsec]');t.setAttribute('aria-expanded',String(on));t.title=on?'접기':'펼치기';
+}
+function bindDsec(root){
+  root.querySelectorAll('[data-dsec]').forEach(el=>el.onclick=()=>{const s=el.closest('.dsec');setDsec(s,s.classList.contains('off'))});
+  root.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>{const s=root.querySelector('#sec-'+el.dataset.go);if(!s)return;
+    if(s.classList.contains('off'))setDsec(s,true);s.scrollIntoView({behavior:'smooth',block:'start'})});
+}
 async function renderDetail(){
   const p=$('#panel');const b=buildings.find(x=>x.id===selId);
   if(!b){mode='dash';return renderDash()}
@@ -1016,6 +1078,37 @@ async function renderDetail(){
   const tab=phTab||(ph.length?'photo':'rv');
   const m3=(()=>{const x=box(b);return {n:FACES.filter(([k])=>x.faces[k]).length,vw:x.vw}})();
   const fl=[b.floors_above?`지상 ${b.floors_above}층`:'',b.floors_below?`지하 ${b.floors_below}층`:''].filter(Boolean).join(' / ');
+  const sugs=fmSug.filter(x=>x.building_id===b.id);
+  const ce=contractEnd(b),sd=salesOK?(sales[b.id]||{}):null;
+  const bidN=bidLinks.filter(x=>x.building_id===b.id&&!x.hidden).length,bidOpenN=bidOpenOf(b.id).length;
+  const S=[
+    ['basic','기본 정보',`<div class="big">${fmtPy(b.gfa)}</div><div class="hint" style="margin-bottom:10px">연면적 ${fmtM2(b.gfa)}</div>
+      <dl><dt>권역</dt><dd>${esc(ZNAME[b.zone]||'—')}</dd>
+      <dt>지역</dt><dd>${esc([b.region,b.district].filter(Boolean).join(' ')||'—')}</dd>
+      <dt>용도</dt><dd>${esc(b.use_type||'—')}</dd><dt>규모</dt><dd>${esc(fl||'—')}</dd>
+      <dt>준공</dt><dd>${esc(b.completed||'—')}</dd><dt>소유주</dt><dd>${esc(b.owner||'—')}</dd></dl>
+      ${b.memo?`<div class="note"><b>메모</b>\n${esc(b.memo)}</div>`:''}`,
+      b.verified?'<span class="dchip ok">확인 완료</span>':''],
+    ['fm','시설관리',`<dl><dt>시설(FM)</dt><dd>${b.fm?.company?esc(b.fm.company):'<span class="flag">미입력</span>'}</dd>
+      ${CATS.filter(([k])=>b.staff?.[k]?.company).map(([k,l])=>`<dt>${l}</dt><dd>${esc(b.staff[k].company)}${b.staff[k].source?' · '+srcLink(b.staff[k].source):''}</dd>`).join('')}
+      ${b.fm?.pm?`<dt>PM</dt><dd>${esc(b.fm.pm)}</dd>`:''}
+      <dt>담당자</dt><dd>${esc(b.fm?.manager||'—')}</dd><dt>연락처</dt><dd>${esc(b.fm?.contact||'—')}</dd><dt>계약기간</dt><dd>${esc(b.fm?.period||'—')}</dd>${b.fm?.source?`<dt>출처</dt><dd>${srcLink(b.fm.source)}${b.fm.checked_at?' <span class="hint">· '+esc(b.fm.checked_at)+' 반영</span>':''}</dd>`:''}</dl>
+      ${sugs.map(x=>sugCard(x,false)).join('')}`,
+      sugs.length?`<span class="dchip warn">검토 대기 ${sugs.length}</span>`:(hasFM(b)?'':'<span class="dchip warn">미입력</span>')],
+    ['staff','관리 인력',CATS.map(([k,l])=>{const s=b.staff?.[k]||{};const n=+s.n||0;return `<div class="srow"><span>${l}</span><div class="bar"><i style="width:${n/mx*100}%"></i></div><span class="n">${n}명</span>${s.company?`<span class="scomp">${esc(s.company)}</span>`:''}</div>`}).join(''),
+      `<span class="dchip">총 ${staffTotal(b)}명</span>`],
+    ['hist','관리업체 이력',histBox(b),''],
+    ['contract','계약 정보',contractBox(b),
+      ce?`<span class="dchip ${dCls(dDays(ce.d))==='now'?'warn':''}">${esc(ddayTxt(dDays(ce.d)))}</span>`:''],
+    sd?['sales','영업',salesDetail(b),sd.stage?`<span class="stag" style="background:${SCOL[sd.stage]};margin:0">${esc(SLBL[sd.stage])}</span>`:'']:null,
+    ['bid','나라장터 입찰',bidDetail(b),
+      (bidOpenN?`<span class="dday">진행 중 ${bidOpenN}</span>`:'')+(bidN?`<span class="dchip">${bidN}건</span>`:'')],
+    ['m3','3D',`<dl><dt>외벽 사진</dt><dd>${m3.n}/4면${m3.n?'':' <span class="hint">(수정 화면에서 올릴 수 있어요)</span>'}</dd>
+      <dt>실사 3D</dt><dd>${m3.vw?'브이월드 건물 연결됨':'<span class="hint">연결 안 됨</span>'}</dd></dl>
+      <div class="actions" style="margin-top:10px"><button class="btn" id="v3go" type="button">실사 3D로 보기</button>${canEdit()?`<button class="btn" id="v3lk" type="button">${m3.vw?'3D 건물 다시 연결':'3D 건물 연결'}</button>`:''}</div>`,''],
+    ['log','변경 이력',`<div class="hint" style="margin-bottom:6px">최종 수정 ${b.updated_at?esc(new Date(b.updated_at).toLocaleString('ko-KR')):''} ${b.updated_by?'· '+esc(names[b.updated_by]||''):''}</div>
+      <ul class="hist" id="hist"><li><small>불러오는 중…</small></li></ul>`,'']
+  ].filter(Boolean);
   p.innerHTML=`<div class="pad">
     <button class="back" id="back">← ${esc(scopeName())}</button>
     <div class="phtabs" role="tablist"><button type="button" role="tab" data-pt="photo" aria-selected="${tab==='photo'}">사진 ${ph.length}</button><button type="button" role="tab" data-pt="rv" aria-selected="${tab==='rv'}">로드뷰</button>${hasPos(b)?`<a href="https://map.kakao.com/link/roadview/${+b.lat},${+b.lng}" target="_blank" rel="noopener noreferrer">카카오맵에서 크게 ↗</a>`:''}</div>
@@ -1023,35 +1116,15 @@ async function renderDetail(){
     <div class="phsrc" id="phsrc"></div>
     <div class="thumbs" id="thumbs"></div>
     ${canEdit()?`<button class="btn" id="phFind" type="button" style="margin-top:6px;padding:4px 10px;font-size:12px">웹에서 사진 찾기</button>`:''}
-    <h2>${esc(b.name)}${b.is_public?'<span class="pubtag">공공</span>':''}</h2><p class="hint" style="margin:0">${esc(b.address||'주소 미입력')}</p>
-    <h3>기본 정보</h3>
-    <div class="big">${fmtPy(b.gfa)}</div><div class="hint" style="margin-bottom:10px">연면적 ${fmtM2(b.gfa)}</div>
-    <dl><dt>권역</dt><dd>${esc(ZNAME[b.zone]||'—')}</dd>
-      <dt>지역</dt><dd>${esc([b.region,b.district].filter(Boolean).join(' ')||'—')}</dd>
-      <dt>용도</dt><dd>${esc(b.use_type||'—')}</dd><dt>규모</dt><dd>${esc(fl||'—')}</dd>
-      <dt>준공</dt><dd>${esc(b.completed||'—')}</dd><dt>소유주</dt><dd>${esc(b.owner||'—')}</dd></dl>
-    <h3>시설관리</h3>
-    <dl><dt>시설(FM)</dt><dd>${b.fm?.company?esc(b.fm.company):'<span class="flag">미입력</span>'}</dd>
-      ${CATS.filter(([k])=>b.staff?.[k]?.company).map(([k,l])=>`<dt>${l}</dt><dd>${esc(b.staff[k].company)}${b.staff[k].source?' · '+srcLink(b.staff[k].source):''}</dd>`).join('')}
-      ${b.fm?.pm?`<dt>PM</dt><dd>${esc(b.fm.pm)}</dd>`:''}
-      <dt>담당자</dt><dd>${esc(b.fm?.manager||'—')}</dd><dt>연락처</dt><dd>${esc(b.fm?.contact||'—')}</dd><dt>계약기간</dt><dd>${esc(b.fm?.period||'—')}</dd>${b.fm?.source?`<dt>출처</dt><dd>${srcLink(b.fm.source)}${b.fm.checked_at?' <span class="hint">· '+esc(b.fm.checked_at)+' 반영</span>':''}</dd>`:''}</dl>
-    ${fmSug.filter(x=>x.building_id===b.id).map(x=>sugCard(x,false)).join('')}
-    ${histBox(b)}
-    ${contractBox(b)}
-    ${salesDetail(b)}
-    ${bidDetail(b)}
-    <h3>관리 인력 · 총 ${staffTotal(b)}명</h3>
-    ${CATS.map(([k,l])=>{const s=b.staff?.[k]||{};const n=+s.n||0;return `<div class="srow"><span>${l}</span><div class="bar"><i style="width:${n/mx*100}%"></i></div><span class="n">${n}명</span>${s.company?`<span class="scomp">${esc(s.company)}</span>`:''}</div>`}).join('')}
-    <h3>3D</h3>
-    <dl><dt>외벽 사진</dt><dd>${m3.n}/4면${m3.n?'':' <span class="hint">(수정 화면에서 올릴 수 있어요)</span>'}</dd>
-      <dt>실사 3D</dt><dd>${m3.vw?'브이월드 건물 연결됨':'<span class="hint">연결 안 됨</span>'}</dd></dl>
-    <div class="actions" style="margin-top:10px"><button class="btn" id="v3go" type="button">실사 3D로 보기</button>${canEdit()?`<button class="btn" id="v3lk" type="button">${m3.vw?'3D 건물 다시 연결':'3D 건물 연결'}</button>`:''}</div>
-    ${b.memo?`<div class="note">${esc(b.memo)}</div>`:''}
-    <div class="hint" style="margin-top:10px">최종 수정 ${b.updated_at?esc(new Date(b.updated_at).toLocaleString('ko-KR')):''} ${b.updated_by?'· '+esc(names[b.updated_by]||''):''}${b.verified?' · 확인 완료':''}</div>
-    <h3>변경 이력</h3><ul class="hist" id="hist"><li><small>불러오는 중…</small></li></ul>
+    <div class="dhead"><div><h2>${esc(b.name)}${b.is_public?'<span class="pubtag">공공</span>':''}</h2><p class="hint" style="margin:0">${esc(b.address||'주소 미입력')}</p></div>
+      ${canEdit()?'<button class="btn" id="edit0" type="button">정보 수정</button>':''}</div>
+    <nav class="dnav" aria-label="항목 바로가기">${S.map(([k,t])=>`<button type="button" data-go="${k}" style="--ac:${SEC_COL[k]}"><i></i>${SEC_SHORT[k]||t}</button>`).join('')}</nav>
+    ${S.map(([k,t,body,extra])=>dsec(k,t,body,extra)).join('')}
     ${canEdit()?`<div class="actions"><button class="btn pri" id="edit">정보 수정</button>${isAdmin()?`<button class="btn warn" id="del">${delArm?'정말 삭제':'삭제'}</button>`:''}</div>`:''}
   </div>`;
   $('#back').onclick=()=>{mode='dash';selId=null;drawMarkers();renderDash()};
+  if($('#edit0'))$('#edit0').onclick=()=>startEdit(b);
+  bindDsec(p);
   if($('#edit'))$('#edit').onclick=()=>startEdit(b);
   $('#v3go').onclick=()=>open3D(b.id,null);
   if($('#phFind'))$('#phFind').onclick=()=>openPhotoFinder([b.id]);
@@ -1471,9 +1544,8 @@ function bindBidBox(p){
 }
 function bidDetail(b){
   const L=bidLinks.filter(x=>x.building_id===b.id&&(!x.hidden||canEdit())).sort(bidSort);
-  if(!L.length)return `<h3>나라장터 입찰</h3><div class="hint">진행 중이든 끝난 것이든 연결된 공고가 없어요.${canEdit()?' 공고명에 다른 이름이 쓰이면 ‘정보 수정’에서 입찰 검색어를 넣어 주세요.':''}</div>`;
-  const open=L.filter(x=>!x.hidden&&bidIsOpen(x)).length;
-  return `<h3>나라장터 입찰 · ${L.filter(x=>!x.hidden).length}건${open?` <span class="dday">진행 중 ${open}</span>`:''}</h3><ul class="bids">${L.map(x=>bidItem(x,false)).join('')}</ul>`;
+  if(!L.length)return `<div class="hint">진행 중이든 끝난 것이든 연결된 공고가 없어요.${canEdit()?' 공고명에 다른 이름이 쓰이면 ‘정보 수정’에서 입찰 검색어를 넣어 주세요.':''}</div>`;
+  return `<ul class="bids" style="margin-top:0">${L.map(x=>bidItem(x,false)).join('')}</ul>`;
 }
 function openBidList(tab){
   bidTab=tab||bidTab;
@@ -1715,8 +1787,7 @@ function openSmsAlert(){
 const ROLE_SEL=[['facility','시설(FM)'],['security','보안'],['cleaning','미화'],['other','기타'],['pm','PM']];
 const fmtDay=s=>s?String(s).slice(0,10).replace(/-/g,'.'):'';
 function histBox(b){
-  return `<h3>관리업체 이력</h3>
-    <div class="hint">업체를 바꾸거나 새로 넣으면 이전 업체가 자동으로 남아요. 앱에 등록하기 전의 과거 업체는 직접 넣을 수 있어요.</div>
+  return `<div class="hint">업체를 바꾸거나 새로 넣으면 이전 업체가 자동으로 남아요. 앱에 등록하기 전의 과거 업체는 직접 넣을 수 있어요.</div>
     <ul class="fmh" id="fmhList"><li class="m">불러오는 중…</li></ul>
     ${canEdit()?'<button class="btn" id="fmhAdd" type="button" style="margin-top:8px;padding:4px 10px;font-size:12px">과거 이력 추가</button>':''}`;
 }
@@ -1887,10 +1958,9 @@ function openSalesList(tab){
 /* 빌딩 상세: 계약 정보 + 영업 */
 function contractBox(b){
   const W=wonBidsOf(b.id),c=contractEnd(b);
-  if(!W.length&&!c)return '';
-  return `<h3>계약 정보</h3>
-    <dl><dt>만료(예상)</dt><dd>${c?`${esc(fmtD(c.d))} <span class="dday ${dCls(dDays(c.d))==='now'?'':'end'}" style="margin-left:4px">${esc(ddayTxt(dDays(c.d)))}</span> <span class="hint">${c.sure?'':'추정 · '}${esc(c.how)}</span>`:'<span class="hint">정보 없음</span>'}</dd></dl>
-    ${W.length?`<div class="hint" style="margin-top:6px">최근 낙찰</div><ul class="bids">${W.slice(0,4).map(x=>`<li><span class="t">${safeUrl(x.bids.url)?`<a href="${esc(safeUrl(x.bids.url))}" target="_blank" rel="noopener noreferrer">${esc(x.bids.title)}</a>`:esc(x.bids.title)}</span><span class="m">낙찰 <b>${esc(x.bids.winner)}</b>${x.bids.winner_amt?' · '+fmtWon(x.bids.winner_amt):''}${x.bids.open_at?' · 개찰 '+esc(String(x.bids.open_at).slice(0,10)):''}</span></li>`).join('')}</ul>`:''}`;
+  if(!W.length&&!c)return `<div class="hint">계약 만료 정보가 없어요. 시설관리의 계약기간을 넣거나, 영업에서 계약 만료일을 넣거나, 나라장터 낙찰 결과가 연결되면 여기에 나와요.</div>`;
+  return `<dl><dt>만료(예상)</dt><dd>${c?`${esc(fmtD(c.d))} <span class="dday ${dCls(dDays(c.d))==='now'?'':'end'}" style="margin-left:4px">${esc(ddayTxt(dDays(c.d)))}</span> <span class="hint">${c.sure?'':'추정 · '}${esc(c.how)}</span>`:'<span class="hint">정보 없음</span>'}</dd></dl>
+    ${W.length?`<div class="dsub">최근 낙찰</div><ul class="bids" style="margin-top:0">${W.slice(0,4).map(x=>`<li><span class="t">${safeUrl(x.bids.url)?`<a href="${esc(safeUrl(x.bids.url))}" target="_blank" rel="noopener noreferrer">${esc(x.bids.title)}</a>`:esc(x.bids.title)}</span><span class="m">낙찰 <b>${esc(x.bids.winner)}</b>${x.bids.winner_amt?' · '+fmtWon(x.bids.winner_amt):''}${x.bids.open_at?' · 개찰 '+esc(String(x.bids.open_at).slice(0,10)):''}</span></li>`).join('')}</ul>`:''}`;
 }
 function salesDetail(b){
   if(!salesOK)return '';
@@ -1905,8 +1975,8 @@ function salesDetail(b){
     <div class="sgrid"><div class="f"><label for="sDate">할 일 날짜</label><input id="sDate" type="date" value="${esc(s.next_date||'')}"></div>
       <div class="f"><label for="sEnd">계약 만료일(확인된 값)</label><input id="sEnd" type="date" value="${esc(s.contract_end||'')}"></div></div>
     <button class="btn pri" id="sSave" type="button">영업 정보 저장</button>`;
-  return `<h3>영업</h3>${canEdit()?form:view}
-    <div class="hint" style="margin-top:12px;font-weight:600;color:var(--ink)">활동 기록</div>
+  return `${canEdit()?form:view}
+    <div class="dsub">활동 기록</div>
     <ul class="acts" id="actList"><li class="m">불러오는 중…</li></ul>
     ${canEdit()?`<div class="sgrid" style="margin-top:8px"><div class="f"><label for="aDay">날짜</label><input id="aDay" type="date" value="${esc(ymdStr(new Date()))}"></div>
       <div class="f"><label for="aKind">유형</label><select id="aKind">${ACT_KINDS.map(k=>`<option>${k}</option>`).join('')}</select></div></div>
