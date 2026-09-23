@@ -125,3 +125,7 @@ do $$ begin
   $cron$);
 exception when others then raise notice '예약 발송을 만들지 못했어요 (pg_cron·pg_net 확인): %', sqlerrm;
 end $$;
+
+-- 9) (2026-09-23 추가) 계정과 연결 — 계정 관리 표에서 계정별로 번호·수신을 설정
+alter table public.sms_recipients add column if not exists profile_id uuid references public.profiles(id) on delete cascade;
+create unique index if not exists sms_recipients_profile_idx on public.sms_recipients(profile_id);
