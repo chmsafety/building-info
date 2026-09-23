@@ -348,7 +348,6 @@ td select{width:auto;padding:4px 6px}
     <div style="position:relative;min-height:0">
       <div id="map" aria-label="지도"></div>
       <button class="btn map3d" id="v3open" type="button">실사 3D</button>
-      <div class="maplegend" id="legend" aria-label="범례"><span><i class="lg on"></i>관리사 입력</span><span><i class="lg off"></i>미입력</span><span><i class="lg bid"></i>입찰 진행</span><span><i class="lg bidend"></i>입찰 마감</span></div>
       <div class="banner hidden" id="banner" style="z-index:10">지도에서 빌딩 위치를 누르세요 · Esc 로 취소</div>
       <div class="v3 hidden" id="v3wrap"><iframe id="v3" title="실사 3D 지도"></iframe>
         <div class="v3bar"><button class="btn" id="v3close" type="button">← 지도로 돌아가기</button><span id="v3msg"></span></div></div>
@@ -1038,7 +1037,7 @@ async function photoUrls(paths){
   return paths.map(p=>signed.get(p)?.url||'');
 }
 /* ---------- 빌딩 상세: 항목별 카드(색 띠 + 아이콘 머리) · 바로가기 · 접기/펴기(기기에 기억) ---------- */
-const SEC_COL={basic:'#0E8A94',fm:'#2E90FA',staff:'#6172F3',hist:'#9E77ED',contract:'#DC6803',sales:'#12B76A',bid:'#D92D20',m3:'#0BA5EC',log:'#667085'};
+const SEC_COL={basic:'#0E8A94',fm:'#2E90FA',staff:'#6172F3',hist:'#9E77ED',contract:'#DC6803',sales:'#12B76A',bid:'#D92D20',log:'#667085'};
 const SVG=d=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const SEC_IC={
   basic:SVG('<rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2M10 21v-3h4v3"/>'),
@@ -1048,10 +1047,9 @@ const SEC_IC={
   contract:SVG('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>'),
   sales:SVG('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),
   bid:SVG('<path d="M4 10l9-5v14l-9-5z"/><path d="M13 7a5 5 0 0 1 0 10M8 15l1.5 5"/>'),
-  m3:SVG('<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>'),
   log:SVG('<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>')
 };
-const SEC_SHORT={basic:'기본',fm:'시설관리',staff:'인력',hist:'업체 이력',contract:'계약',sales:'영업',bid:'입찰',m3:'3D',log:'변경 이력'};
+const SEC_SHORT={basic:'기본',fm:'시설관리',staff:'인력',hist:'업체 이력',contract:'계약',sales:'영업',bid:'입찰',log:'변경 이력'};
 const dOpen=k=>OPEN['d_'+k]!==false;
 function dsec(k,title,body,extra){
   const on=dOpen(k);
@@ -1076,7 +1074,6 @@ async function renderDetail(){
   if(!b.__full){await ensureFull(b);if(selId!==b.id||mode!=='detail')return}   // 메모·사진 출처는 여기서 받아요
   const ph=b.photos||[];const mx=Math.max(1,...CATS.map(([k])=>+(b.staff?.[k]?.n)||0));
   const tab=phTab||(ph.length?'photo':'rv');
-  const m3=(()=>{const x=box(b);return {n:FACES.filter(([k])=>x.faces[k]).length,vw:x.vw}})();
   const fl=[b.floors_above?`지상 ${b.floors_above}층`:'',b.floors_below?`지하 ${b.floors_below}층`:''].filter(Boolean).join(' / ');
   const sugs=fmSug.filter(x=>x.building_id===b.id);
   const ce=contractEnd(b),sd=salesOK?(sales[b.id]||{}):null;
@@ -1103,9 +1100,6 @@ async function renderDetail(){
     sd?['sales','영업',salesDetail(b),sd.stage?`<span class="stag" style="background:${SCOL[sd.stage]};margin:0">${esc(SLBL[sd.stage])}</span>`:'']:null,
     ['bid','나라장터 입찰',bidDetail(b),
       (bidOpenN?`<span class="dday">진행 중 ${bidOpenN}</span>`:'')+(bidN?`<span class="dchip">${bidN}건</span>`:'')],
-    ['m3','3D',`<dl><dt>외벽 사진</dt><dd>${m3.n}/4면${m3.n?'':' <span class="hint">(수정 화면에서 올릴 수 있어요)</span>'}</dd>
-      <dt>실사 3D</dt><dd>${m3.vw?'브이월드 건물 연결됨':'<span class="hint">연결 안 됨</span>'}</dd></dl>
-      <div class="actions" style="margin-top:10px"><button class="btn" id="v3go" type="button">실사 3D로 보기</button>${canEdit()?`<button class="btn" id="v3lk" type="button">${m3.vw?'3D 건물 다시 연결':'3D 건물 연결'}</button>`:''}</div>`,''],
     ['log','변경 이력',`<div class="hint" style="margin-bottom:6px">최종 수정 ${b.updated_at?esc(new Date(b.updated_at).toLocaleString('ko-KR')):''} ${b.updated_by?'· '+esc(names[b.updated_by]||''):''}</div>
       <ul class="hist" id="hist"><li><small>불러오는 중…</small></li></ul>`,'']
   ].filter(Boolean);
@@ -1126,13 +1120,11 @@ async function renderDetail(){
   if($('#edit0'))$('#edit0').onclick=()=>startEdit(b);
   bindDsec(p);
   if($('#edit'))$('#edit').onclick=()=>startEdit(b);
-  $('#v3go').onclick=()=>open3D(b.id,null);
   if($('#phFind'))$('#phFind').onclick=()=>openPhotoFinder([b.id]);
   p.querySelectorAll('[data-pt]').forEach(t=>t.onclick=()=>{if(t.dataset.pt!==tab){phTab=t.dataset.pt;renderDetail()}});
   bindSug($('#panel'));bindBidList($('#panel'),renderDetail);bindSales($('#panel'),b);
   if($('#fmhAdd'))$('#fmhAdd').onclick=()=>openHistEdit(b,null);
   loadHist(b);
-  if($('#v3lk'))$('#v3lk').onclick=()=>open3D(b.id,b.id);
   if($('#del'))$('#del').onclick=async()=>{if(!delArm){delArm=true;return renderDetail()}
     const {error}=await sb.from('buildings').delete().eq('id',b.id);
     if(error)return toast('삭제하지 못했어요: '+error.message);
@@ -1169,7 +1161,7 @@ function collect(){
   const gm=num('gfa_m2');draft.gfa=gm;
   draft.fm=Object.assign({},draft.fm,{company:v('fm_company'),manager:v('fm_manager'),contact:v('fm_contact'),period:v('fm_period')});
   const st={};for(const [k] of CATS){const n=num('s_'+k)||0,c=v('c_'+k);if(n||c){const o=Object.assign({},draft.staff[k]||{},{n,company:c});if(o.company!==(draft.staff[k]||{}).company){delete o.source;delete o.checked_at}st[k]=o}}draft.staff=st;
-  const m3=draft.model3d;m3.w=num('m3_w');m3.d=num('m3_d');m3.h=num('m3_h');m3.az=+f.elements.m3_az.value;
+  // 3D 치수·방향은 화면에서 뺐어요(로드뷰로 대신). 저장된 값은 그대로 둬요.
 }
 function cleanModel(m){
   const o={};for(const k of ['w','d','h'])if(m[k]!=null&&isFinite(m[k])&&m[k]>0)o[k]=Math.min(1000,+m[k]);
@@ -1202,16 +1194,6 @@ async function renderEdit(){
     <h3>사진</h3>
     <input type="file" id="pf" accept="image/jpeg,image/png,image/webp" multiple aria-label="사진 추가"><div class="hint" id="pst">사진 1장당 10MB 이하</div>${d.isNew?'':'<button class="btn" id="pfWeb" type="button" style="margin-top:6px">웹에서 사진 찾기</button>'}
     <div class="ph-edit" id="phEdit"></div>
-    <h3>3D 모습</h3>
-    <div class="hint">지도를 확대하면 빌딩이 입체로 서요. 외벽 사진을 올리면 그 면에 사진이 입혀지고, 사진이 없는 면은 반대편 사진으로 채워요.</div>
-    <div class="g3" style="margin-top:8px"><div class="f"><label for="m3_w">정면 폭(m)</label><input id="m3_w" name="m3_w" inputmode="decimal" placeholder="자동 ${bx.auto.w}" value="${val(d.model3d.w)}"></div>
-      <div class="f"><label for="m3_d">측면 깊이(m)</label><input id="m3_d" name="m3_d" inputmode="decimal" placeholder="자동 ${bx.auto.d}" value="${val(d.model3d.d)}"></div>
-      <div class="f"><label for="m3_h">높이(m)</label><input id="m3_h" name="m3_h" inputmode="decimal" placeholder="자동 ${bx.auto.h}" value="${val(d.model3d.h)}"></div></div>
-    <div class="f"><label for="m3_az">정면이 향한 방향 <b id="azv">${bx.az}° ${dirName(bx.az)}</b></label><input id="m3_az" name="m3_az" type="range" min="0" max="359" value="${bx.az}" style="padding:0"></div>
-    <div class="faces">${FACES.map(([k,l])=>{const fp=d.model3d.faces[k];return `<div class="face ${fp?'has':''}"><span>${l}</span>
-      <label class="thumb" data-ft="${k}">${fp?'':'사진 올리기'}<input type="file" accept="image/*,.heic,.heif" data-face="${k}" hidden></label>
-      ${fp?`<button class="btn" type="button" data-fdel="${k}">빼기</button>`:''}</div>`}).join('')}</div>
-    <div class="hint" id="fst"></div>
     <h3>시설관리회사</h3>
     <div class="f"><label for="fm_company">관리회사</label><input id="fm_company" name="fm_company" value="${val(d.fm.company)}"></div>
     <div class="g2"><div class="f"><label for="fm_manager">담당자</label><input id="fm_manager" name="fm_manager" value="${val(d.fm.manager)}"></div>
@@ -1239,12 +1221,9 @@ async function renderEdit(){
   $('#geo').onclick=geocode;
   $('#pf').onchange=uploadPhotos;
   if($('#pfWeb'))$('#pfWeb').onclick=()=>{collect();openPhotoFinder([d.id],d)};
-  const m3in=()=>{collect();const a=draft.model3d.az;$('#azv').textContent=`${a}° ${dirName(a)}`;syncBoxes()};
-  for(const id of ['m3_w','m3_d','m3_h','m3_az','fa','fb','gfa_m2'])$('#'+id).addEventListener('input',m3in);
+  const m3in=()=>{collect();syncBoxes()};
+  for(const id of ['fa','fb','gfa_m2'])$('#'+id).addEventListener('input',m3in);
   $('#region').onchange=()=>{collect();renderEdit()};   // 시도가 바뀌면 권역 선택지도 바꿔 줘요
-  p.querySelectorAll('input[data-face]').forEach(el=>el.onchange=()=>{const fl=el.files[0];if(fl)addFacade(el.dataset.face,fl)});
-  p.querySelectorAll('[data-fdel]').forEach(el=>el.onclick=()=>{collect();delete draft.model3d.faces[el.dataset.fdel];syncBoxes();renderEdit()});
-  facadeThumbs(d);
   $('#save').onclick=save;
   drawTmp();
   if(d.photos.length){const urls=await photoUrls(d.photos);if(mode!=='edit'||draft!==d)return;
