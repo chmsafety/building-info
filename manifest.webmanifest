@@ -3,7 +3,7 @@
   "short_name": "Building",
   "description": "빌딩정보 시스템",
   "lang": "ko",
-  "id": "./",
+  "id": "/building-info/",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
