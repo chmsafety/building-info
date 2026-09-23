@@ -298,6 +298,7 @@ td select{width:auto;padding:4px 6px}
         <button role="menuitem" id="mAdmin" class="hidden">계정 관리</button>
         <button role="menuitem" id="mImport" class="hidden">건축물대장 가져오기</button>
         <button role="menuitem" id="mBid" class="hidden">나라장터 입찰 가져오기</button>
+        <button role="menuitem" id="mSms" class="hidden">입찰 문자 알림</button>
         <button role="menuitem" id="mPhoto" class="hidden">빌딩 사진 찾기</button>
         <button role="menuitem" id="mBackup" class="hidden">백업 · 내려받기</button>
         <button role="menuitem" id="mCsv">CSV 내보내기</button>
@@ -499,6 +500,7 @@ async function enterApp(){
   $('#mAdmin').classList.toggle('hidden',!isAdmin());
   $('#mImport').classList.toggle('hidden',!isAdmin());
   $('#mBid').classList.toggle('hidden',!isAdmin());
+  $('#mSms').classList.toggle('hidden',!isAdmin());
   $('#mCsv').classList.toggle('hidden',!canEdit());
   $('#mBackup').classList.toggle('hidden',!isAdmin());
   $('#mPhoto').classList.toggle('hidden',!canEdit());
@@ -604,6 +606,7 @@ $('#mPw').onclick=()=>openPwModal(false);
 $('#mAdmin').onclick=()=>openAdmin();
 $('#mImport').onclick=()=>openImport();
 $('#mBid').onclick=()=>openBidSync();
+$('#mSms').onclick=()=>openSmsAlert();
 $('#mPhoto').onclick=()=>openPhotoFinder(null);
 $('#mBackup').onclick=openBackup;
 $('#mCsv').onclick=exportCsv;
@@ -1568,6 +1571,136 @@ function openBidSync(){
   };
 }
 
+
+/* ================= 입찰 문자 알림 (관리자) =================
+   새 입찰공고 · 마감 임박 · 낙찰 결과를 '받는 사람' 휴대폰으로 (솔라피). 보내는 일은 서버 함수 bid-notify. */
+async function smsCall(body){
+  const {data,error}=await sb.functions.invoke('bid-notify',{body});
+  if(error){let msg=error.message;try{const j=await error.context.json();msg=j.error||msg}catch(_){}
+    if(/Failed to send|not found|404/i.test(msg))msg='문자 알림 서버 함수(bid-notify)가 아직 없어요. 설치를 먼저 끝내 주세요.';throw new Error(msg)}
+  if(data&&data.error)throw new Error(data.error);return data;
+}
+const phoneTxt=p=>String(p||'').replace(/^(\d{3})(\d{3,4})(\d{4})$/,'$1-$2-$3');
+function openSmsAlert(){
+  if(!isAdmin())return;
+  const m=modal(`<h2>입찰 문자 알림</h2>
+    <p class="hint" style="margin:0">등록 빌딩과 연결된 나라장터 공고가 <b>새로 잡히거나</b>, <b>마감이 다가오거나</b>, <b>낙찰자가 확인되면</b> 아래 사람들에게 문자를 보내요. 매일 오전 7시 15분·오후 6시 15분(입찰 자동 확인 직후)에 한 번에 모아 보내고, 같은 공고·같은 알림은 두 번 보내지 않아요.</p>
+    <h3>솔라피 연결</h3>
+    <div id="smSt" class="hint">확인하는 중…</div>
+    <details id="smKeyBox" style="margin-top:6px"><summary class="hint" style="cursor:pointer">솔라피 키 넣기 · 바꾸기</summary>
+      <div class="hint" style="margin:6px 0">솔라피 콘솔 › 개발/연동 › API Key 에서 확인하세요. <b>허용 IP 제한은 비워 두세요</b>(서버 주소가 바뀌어요). 저장한 키는 다시 보이지 않아요. 바꿀 칸만 넣으면 돼요.</div>
+      <div class="g3"><div class="f"><label for="smK">API Key</label><input id="smK" autocomplete="off" spellcheck="false"></div>
+        <div class="f"><label for="smS">API Secret</label><input id="smS" type="password" autocomplete="new-password"></div>
+        <div class="f"><label for="smP">발신번호</label><input id="smP" inputmode="tel" placeholder="솔라피에 등록된 번호"></div></div>
+      <button class="btn" id="smKeySave" type="button">키 저장</button></details>
+    <h3>알림 설정</h3>
+    <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+      <label class="keep" style="margin:0"><input type="checkbox" id="smOn"> 문자 알림 켜기</label>
+      <label style="display:flex;gap:6px;align-items:center;margin:0">마감 임박 기준 <select id="smDue" style="width:auto">${[1,2,3,5,7].map(n=>`<option value="${n}">마감 ${n}일 전</option>`).join('')}</select></label>
+    </div>
+    <h3>받는 사람</h3>
+    <div class="tbl" id="smList">불러오는 중…</div>
+    <form onsubmit="return false" class="g3" style="grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-top:8px">
+      <div><label for="smNm">이름</label><input id="smNm" maxlength="40"></div>
+      <div><label for="smPh">휴대폰</label><input id="smPh" inputmode="tel" placeholder="010-0000-0000"></div>
+      <button class="btn pri" id="smAdd" type="submit">추가</button></form>
+    <div class="actions"><button class="btn" id="smPrev" type="button">지금 보낼 내용 미리보기</button><button class="btn" id="smRun" type="button">지금 보내기</button><button class="btn" id="smX" type="button">닫기</button></div>
+    <div class="err" id="smErr"></div>
+    <div class="note hidden" id="smOut" style="max-height:260px;overflow:auto"></div>
+    <h3>최근 발송 기록</h3><div class="tbl" id="smLog">불러오는 중…</div>`);
+  const err=m.querySelector('#smErr'),out=m.querySelector('#smOut');
+  const say=(t,good)=>{err.style.color=good?'var(--ok)':'';err.textContent=t};
+  m.querySelector('#smX').onclick=closeModal;
+  const status=async()=>{
+    const el=m.querySelector('#smSt');
+    try{const r=await smsCall({action:'status'});
+      const ready=r.key&&r.secret&&r.sender;
+      el.innerHTML=ready?`<span style="color:var(--ok);font-weight:600">연결됨</span> · 발신번호 ${esc(r.sender)} · API Key …${esc(r.keyTail)}${r.balance!=null?` · 잔액 ${n0(r.balance)}원`:''}${r.err?` <span class="flag">· ${esc(r.err)}</span>`:''}`
+        :`<span class="flag">아직 연결 안 됨</span> — ${[!r.key&&'API Key',!r.secret&&'API Secret',!r.sender&&'발신번호'].filter(Boolean).join(', ')}를 넣어 주세요.`;
+      if(!ready)m.querySelector('#smKeyBox').open=true;
+    }catch(e){el.innerHTML=`<span class="flag">${esc(e.message)}</span>`}
+  };
+  m.querySelector('#smKeySave').onclick=async()=>{
+    const k=m.querySelector('#smK').value.trim(),s=m.querySelector('#smS').value.trim(),p=m.querySelector('#smP').value.trim();
+    if(!k&&!s&&!p)return say('바꿀 칸을 하나 이상 넣으세요.');
+    try{await smsCall({action:'config',api_key:k,api_secret:s,sender:p});
+      m.querySelector('#smK').value='';m.querySelector('#smS').value='';m.querySelector('#smP').value='';say('솔라피 키를 저장했어요.',true);status()}
+    catch(e){say(e.message)}
+  };
+  const loadSettings=async()=>{
+    const {data,error}=await sb.from('sms_settings').select('enabled,due_days').eq('id',1).maybeSingle();
+    if(error){say(/does not exist|relation|schema cache/i.test(error.message)?'문자 알림 저장 칸이 아직 없어요. Supabase 에서 supabase/13_bid_sms.sql 을 먼저 실행하세요.':'설정을 불러오지 못했어요: '+error.message);return}
+    m.querySelector('#smOn').checked=!!data?.enabled;m.querySelector('#smDue').value=String(data?.due_days||3);
+  };
+  const saveSettings=async()=>{
+    const {error}=await sb.from('sms_settings').update({enabled:m.querySelector('#smOn').checked,due_days:+m.querySelector('#smDue').value}).eq('id',1);
+    if(error)return say('설정을 저장하지 못했어요: '+error.message);
+    say(m.querySelector('#smOn').checked?'문자 알림을 켰어요.':'문자 알림을 껐어요.',true);
+  };
+  m.querySelector('#smOn').onchange=saveSettings;m.querySelector('#smDue').onchange=saveSettings;
+  const list=async()=>{
+    const box=m.querySelector('#smList');
+    const {data,error}=await sb.from('sms_recipients').select('*').order('id');
+    if(error){box.textContent='불러오지 못했어요: '+error.message;return}
+    if(!data.length){box.innerHTML='<p class="hint">아직 받는 사람이 없어요. 아래에서 추가하세요.</p>';return}
+    box.innerHTML=`<table><thead><tr><th>이름</th><th>휴대폰</th><th>새 공고</th><th>마감 임박</th><th>낙찰</th><th>사용</th><th></th></tr></thead><tbody>${data.map(r=>`<tr data-rid="${r.id}">
+      <td>${esc(r.name)}</td><td style="white-space:nowrap">${esc(phoneTxt(r.phone))}</td>
+      ${['on_new','on_due','on_win','active'].map(k=>`<td><input type="checkbox" data-f="${k}" ${r[k]?'checked':''} aria-label="${k}" style="width:auto"></td>`).join('')}
+      <td style="white-space:nowrap"><button class="btn" type="button" data-t style="padding:3px 8px;font-size:12px">시험 문자</button> <button class="btn warn" type="button" data-d style="padding:3px 8px;font-size:12px">삭제</button></td></tr>`).join('')}</tbody></table>`;
+    box.querySelectorAll('tr[data-rid]').forEach(tr=>{
+      const id=+tr.dataset.rid,r=data.find(x=>x.id===id);
+      tr.querySelectorAll('[data-f]').forEach(cb=>cb.onchange=async()=>{
+        const {error}=await sb.from('sms_recipients').update({[cb.dataset.f]:cb.checked}).eq('id',id);
+        if(error){say('바꾸지 못했어요: '+error.message);cb.checked=!cb.checked}else say('');
+      });
+      tr.querySelector('[data-t]').onclick=async e=>{
+        e.target.disabled=true;say('시험 문자를 보내는 중…',true);
+        try{const x=await smsCall({action:'test',ids:[id]});say(x.sent?`${r.name}님께 시험 문자를 보냈어요.`:'보내지 못했어요: '+(x.note||''),!!x.sent);logs()}
+        catch(x){say(x.message)}e.target.disabled=false;
+      };
+      tr.querySelector('[data-d]').onclick=async()=>{
+        if(!confirm(`${r.name}(${phoneTxt(r.phone)})님을 받는 사람에서 뺄까요?`))return;
+        const {error}=await sb.from('sms_recipients').delete().eq('id',id);
+        if(error)return say('삭제하지 못했어요: '+error.message);list();
+      };
+    });
+  };
+  m.querySelector('#smAdd').onclick=async()=>{
+    const name=m.querySelector('#smNm').value.trim(),phone=m.querySelector('#smPh').value.replace(/\D/g,'');
+    if(!name)return say('이름을 넣으세요.');
+    if(!/^01\d{8,9}$/.test(phone))return say('휴대폰 번호를 확인하세요 (예: 010-1234-5678).');
+    const {error}=await sb.from('sms_recipients').insert({name,phone});
+    if(error)return say(/duplicate|unique/i.test(error.message)?'이미 있는 번호예요.':'추가하지 못했어요: '+error.message);
+    m.querySelector('#smNm').value='';m.querySelector('#smPh').value='';say(`${name}님을 추가했어요.`,true);list();
+  };
+  m.querySelector('#smPrev').onclick=async()=>{
+    say('확인하는 중…',true);out.classList.add('hidden');
+    try{const r=await smsCall({action:'preview'});const c=r.counts||{};
+      say(`지금 알릴 것 — 새 입찰 ${c.new||0} · 마감 임박 ${c.due||0} · 낙찰 ${c.win||0}${r.enabled?'':' (알림이 꺼져 있어 자동으로는 안 보내요)'}`,true);
+      out.textContent=r.messages&&r.messages.length?r.messages.map(x=>`▶ ${x.name} ${x.phone} (${x.bytes}바이트)\n${x.text}`).join('\n\n──────────\n\n'):'받을 사람에게 보낼 내용이 없어요.';
+      out.classList.remove('hidden');
+    }catch(e){say(e.message)}
+  };
+  m.querySelector('#smRun').onclick=async e=>{
+    if(!confirm('지금 알릴 것이 있으면 바로 문자를 보낼까요? (이미 보낸 공고는 다시 안 보내요)'))return;
+    e.target.disabled=true;say('보내는 중…',true);
+    try{const r=await smsCall({action:'run'});
+      say(r.skipped?r.skipped:r.error?r.error:r.sent?`${r.sent}명에게 보냈어요${r.fail?` (실패 ${r.fail})`:''}.`:'지금은 알릴 새 소식이 없어요.',!r.error&&!r.skipped);logs()}
+    catch(x){say(x.message)}e.target.disabled=false;
+  };
+  const logs=async()=>{
+    const box=m.querySelector('#smLog');
+    const {data,error}=await sb.from('sms_log').select('at,mode,n_new,n_due,n_win,recipients,ok,fail,note').order('at',{ascending:false}).limit(15);
+    if(error){box.textContent='';return}
+    if(!data.length){box.innerHTML='<p class="hint">아직 보낸 기록이 없어요.</p>';return}
+    box.innerHTML=`<table><thead><tr><th>때</th><th>종류</th><th>내용</th><th>결과</th></tr></thead><tbody>${data.map(l=>`<tr>
+      <td class="hint" style="white-space:nowrap">${esc(new Date(l.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))}</td>
+      <td>${{auto:'자동',manual:'지금 보내기',test:'시험'}[l.mode]||esc(l.mode||'')}</td>
+      <td>${l.mode==='test'?'시험 문자':[l.n_new?'새 입찰 '+l.n_new:'',l.n_due?'임박 '+l.n_due:'',l.n_win?'낙찰 '+l.n_win:''].filter(Boolean).join(' · ')}</td>
+      <td>${l.ok?`<span style="color:var(--ok)">${l.ok}명 성공</span>`:''}${l.fail?` <span class="flag">${l.fail}명 실패</span>`:''}${l.note?`<div class="hint">${esc(l.note)}</div>`:''}</td></tr>`).join('')}</tbody></table>`;
+  };
+  status();loadSettings();list();logs();
+}
 
 /* ================= 관리업체 변경 이력 ================= */
 const ROLE_SEL=[['facility','시설(FM)'],['security','보안'],['cleaning','미화'],['other','기타'],['pm','PM']];
