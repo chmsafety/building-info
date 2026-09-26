@@ -991,12 +991,6 @@ function renderDash(){
     </div>
     ${fmBox(zb)}
     ${salesBox(zb)}
-    ${bidBox(zb)}
-    <div class="sbox"><div class="hd">${hdBtn('cos','관리회사별 빌딩 수')}<span class="hint">시설·보안·미화 · ${rows.filter(r=>r.name!=='__none').length}개사</span></div>
-    <div class="${isOpen('cos')?'':'hidden'}" style="margin-top:8px">
-    ${rows.length?`<div class="bars cos">${rows.map(r=>`<button type="button" class="barrow${(r.name==='__none'?onlyMissing&&!query:query===r.name)?' on':''}" data-co="${esc(r.name==='__none'?'':r.name)}" title="${esc(r.name==='__none'?'미입력':r.name+' ('+roleTxt(r.roles)+')')}"><span class="nm">${r.name==='__none'?'<span class="flag">미입력</span>':esc(r.name)+(r.roles.length?' <small class="hint">'+esc(roleTxt(r.roles))+'</small>':'')}</span><div class="bar"><i class="${r.name==='__none'?'none':''}" style="width:${Math.min(100,r.n/mx*100)}%"></i></div><span class="n">${r.n}</span></button>`).join('')}</div>
-    <div class="hint" style="margin-top:4px">회사를 누르면 아래 목록이 그 회사 빌딩으로 좁혀지고, 한 번 더 누르거나 ‘전체 보기’를 누르면 돌아와요. 한 빌딩에 시설·보안·미화 회사가 다르면 각 회사에 모두 세요.</div>`:'<div class="hint">빌딩이 없어요.</div>'}
-    </div></div>
     <div class="sbox"><div class="hd">${hdBtn('list','빌딩 목록')}<span class="hint">${vis.length}곳</span></div>
     <div class="${isOpen('list')?'':'hidden'}" style="margin-top:8px">
     <div class="toolbar"><input id="q" placeholder="빌딩명·주소·관리사 검색" value="${esc(query)}" aria-label="검색">
@@ -1006,6 +1000,12 @@ function renderDash(){
     <label class="keep" style="margin-top:8px"><input type="checkbox" id="bidany" ${bidAny?'checked':''}> 입찰 이력 있는 빌딩만</label>
     <label class="keep" style="margin-top:8px"><input type="checkbox" id="myonly" ${myOnly?'checked':''}> 내 담당만</label></div>
     <div id="blist">${listHtml(vis,zb)}</div>
+    </div></div>
+    ${bidBox(zb)}
+    <div class="sbox"><div class="hd">${hdBtn('cos','관리회사별 빌딩 수')}<span class="hint">시설·보안·미화 · ${rows.filter(r=>r.name!=='__none').length}개사</span></div>
+    <div class="${isOpen('cos')?'':'hidden'}" style="margin-top:8px">
+    ${rows.length?`<div class="bars cos">${rows.map(r=>`<button type="button" class="barrow${(r.name==='__none'?onlyMissing&&!query:query===r.name)?' on':''}" data-co="${esc(r.name==='__none'?'':r.name)}" title="${esc(r.name==='__none'?'미입력':r.name+' ('+roleTxt(r.roles)+')')}"><span class="nm">${r.name==='__none'?'<span class="flag">미입력</span>':esc(r.name)+(r.roles.length?' <small class="hint">'+esc(roleTxt(r.roles))+'</small>':'')}</span><div class="bar"><i class="${r.name==='__none'?'none':''}" style="width:${Math.min(100,r.n/mx*100)}%"></i></div><span class="n">${r.n}</span></button>`).join('')}</div>
+    <div class="hint" style="margin-top:4px">회사를 누르면 빌딩 목록이 그 회사 빌딩으로 좁혀지고, 한 번 더 누르거나 ‘전체 보기’를 누르면 돌아와요. 한 빌딩에 시설·보안·미화 회사가 다르면 각 회사에 모두 세요.</div>`:'<div class="hint">빌딩이 없어요.</div>'}
     </div></div>
   </div>`;
   const qi=$('#q');qi.oninput=()=>{query=qi.value;listMore=0;drawMarkers();refreshList()};   // 입력칸은 다시 그리지 않음 (한글 조합이 끊기지 않게)
