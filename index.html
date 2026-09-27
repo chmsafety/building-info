@@ -56,12 +56,31 @@ header h1{font-size:16px;margin:0;font-weight:700;white-space:nowrap}
 .menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--paper);border:1px solid var(--line);border-radius:10px;min-width:170px;padding:6px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.12)}
 .menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:6px}
 .menu button:hover{background:var(--bg)}
-.zones{display:grid;gap:6px;padding:8px 16px;background:var(--paper);border-bottom:1px solid var(--line)}
-.zrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
 .zone{flex:none;padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--paper);font-size:13px;white-space:nowrap}
 .zone[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
-.zlbl{flex:none;width:46px;font-size:12px;color:var(--ink2);font-weight:600}
 .zone small{opacity:.7;margin-left:4px}
+/* 필터 막대: [시도 ▾] [권역 칩] ······ [연면적 ▭▭▭▭] [구분 ▭▭▭] 초기화 */
+.zones{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:9px 16px;background:var(--paper);border-bottom:1px solid var(--line)}
+.zg{display:flex;align-items:center;gap:8px;min-width:0}
+.zg-z{flex:1 1 380px}
+.zlbl{flex:none;font-size:11.5px;color:var(--ink2);font-weight:600;letter-spacing:.02em}
+.zchips{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+#zones .zone{padding:5px 12px;font-size:12.5px;font-weight:600;color:var(--ink2);transition:border-color .15s,color .15s}
+#zones .zone:hover{border-color:var(--cardlineh);color:var(--ink)}
+#zones .zone[aria-pressed="true"]{color:var(--paper);border-color:var(--ink)}
+#zones .zone small,.seg small{font-weight:500;margin-left:5px;opacity:.6;font-variant-numeric:tabular-nums}
+.zsel{position:relative;display:inline-flex;flex:none}
+.zsel select{-webkit-appearance:none;appearance:none;width:auto;background:var(--paper);border:1px solid var(--line);border-radius:99px;padding:5px 32px 5px 13px;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer}
+.zsel select:hover{border-color:var(--cardlineh)}
+.zsel::after{content:"";position:absolute;right:14px;top:50%;width:6px;height:6px;border-right:2px solid var(--ink2);border-bottom:2px solid var(--ink2);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+.zopts{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin-left:auto}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:10px;background:var(--chip)}
+.seg button{border:0;background:transparent;padding:4px 11px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--ink2);white-space:nowrap}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px var(--sh2)}
+.zreset{border:0;background:none;padding:4px 2px;font-size:12.5px;font-weight:700;color:var(--pin)}
+.zreset[hidden]{display:none}
+.zft{display:none}
 main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 #map{min-height:0;height:100%;background:#dde6e7}
 #map .maplibregl-canvas{outline:none}
@@ -355,17 +374,28 @@ td select{width:auto;padding:4px 6px}
   .ztg span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ztg[aria-expanded="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
   .zones:not(.mopen){display:none}
-  .zones{max-height:48vh;overflow:auto}
+  .zones{overflow:auto}
   header{gap:8px;padding:8px 12px}
   .brand img{height:22px}
   header h1{font-size:15px}
   .kpis{grid-template-columns:repeat(2,1fr)}
   .who .nmtxt{display:none}
   .fx{grid-template-columns:1fr}.fxp{display:none}
-  .zones{padding:8px 12px;gap:6px}
-  .zrow{gap:5px}
-  .zone{padding:5px 10px;font-size:12.5px}
-  .zlbl{width:auto;font-size:11px;margin-right:2px}
+  /* 모바일 필터 시트: 항목마다 제목 위·선택지 아래, 선택지는 한 줄에 반듯하게 */
+  .zones{display:grid;gap:16px;padding:14px 14px 0;max-height:62vh;box-shadow:0 10px 18px -12px var(--sh3)}
+  .zg{display:grid;gap:7px}
+  .zlbl{font-size:12px}
+  .zsel{display:flex}
+  .zsel select{width:100%;border-radius:10px;padding:9px 36px 9px 12px;font-size:14px}
+  .zchips{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:6px}
+  #zones .zone{padding:7px 6px;font-size:13px;text-align:center;border-radius:10px;overflow:hidden;text-overflow:ellipsis}
+  .zopts{display:grid;gap:16px;margin:0}
+  .seg{display:flex}
+  .seg button{flex:1;padding:7px 4px;font-size:13px}
+  .zopts .zreset{display:none}
+  .zft{display:flex;gap:8px;position:sticky;bottom:0;margin:0 -14px;padding:10px 14px 12px;background:var(--paper);border-top:1px solid var(--line)}
+  .zft .btn{padding:10px 12px;font-weight:700}
+  .zft .btn.pri{flex:1}
   .bidk{grid-template-columns:repeat(2,1fr)}
   .dnav{margin:12px -18px 0}
 }
@@ -749,27 +779,36 @@ function subList(){
   return Object.entries(c).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'ko')).map(([d,n])=>({id:dKey(d),name:d,n}));
 }
 function renderZones(){
-  // 3단 배치: 시도 / 세부(권역·시군구) / 연면적·구분 — 옆으로 스크롤하지 않도록 줄바꿈
+  // 한 막대에 정리: 시도는 드롭다운, 권역(시군구)은 칩, 연면적·구분은 세그먼트 — 모바일은 시트로 세로 정렬
   const sd=sidoList(),subs=subList();
   const inR=buildings.filter(b=>(regionF==='ALL'||b.region===regionF)&&sizeOk(b)&&pubOk(b));
-  const sidoRow=sd.length?`<div class="zrow" role="group" aria-label="시도"><span class="zlbl">지역</span>`
-    +`<button class="zone" data-r="ALL" aria-pressed="${regionF==='ALL'}">전국</button>`
-    +sd.map(r=>`<button class="zone" data-r="${esc(r.region)}" aria-pressed="${r.region===regionF}">${esc(r.region)}<small>${r.n}</small></button>`).join('')
-    +`</div>`:'';
-  const subRow=subs.length?`<div class="zrow" role="group" aria-label="세부"><span class="zlbl">${regionF!=='ALL'&&!SUB_FIXED[regionF]?'시군구':'권역'}</span>`
-    +`<button class="zone" data-z="all" aria-pressed="${zone==='all'}">전체<small>${inR.length}</small></button>`
-    +subs.map(x=>`<button class="zone" data-z="${esc(x.id)}" aria-pressed="${x.id===zone}">${esc(x.name)}<small>${x.n}</small></button>`).join('')
-    +`</div>`:'';
-  $('#zones').innerHTML=sidoRow+subRow
-    +`<div class="zrow" role="group" aria-label="연면적"><span class="zlbl">연면적</span>`
-    +SIZES.map(([v,l])=>`<button class="zone" data-sz="${v}" aria-pressed="${v===minPy}">${l}</button>`).join('')
-    +`<span class="zlbl" style="margin-left:10px">구분</span>`
-    +[['all','전체'],['priv','민간'],['pub','공공']].map(([v,l])=>`<button class="zone" data-pub="${v}" aria-pressed="${v===pubF}">${l}${v==='pub'?`<small>${inR.filter(b=>b.is_public).length}</small>`:''}</button>`).join('')+`</div>`;
+  const subLbl=regionF!=='ALL'&&!SUB_FIXED[regionF]?'시군구':'권역';
+  const dirty=zone!=='all'||!!minPy||pubF!=='all';
+  const nVis=buildings.filter(inZone).length;
+  const sido=`<div class="zg zg-r"><span class="zlbl">지역</span><span class="zsel"><select id="zR" aria-label="시도">`
+    +`<option value="ALL"${regionF==='ALL'?' selected':''}>전국</option>`
+    +sd.map(r=>`<option value="${esc(r.region)}"${r.region===regionF?' selected':''}>${esc(r.region)} · ${r.n}</option>`).join('')
+    +(regionF!=='ALL'&&!sd.some(r=>r.region===regionF)?`<option value="${esc(regionF)}" selected>${esc(regionF)}</option>`:'')
+    +`</select></span></div>`;
+  const sub=subs.length?`<div class="zg zg-z"><span class="zlbl">${subLbl}</span><div class="zchips" role="group" aria-label="${subLbl}">`
+    +`<button type="button" class="zone" data-z="all" aria-pressed="${zone==='all'}">전체<small>${inR.length}</small></button>`
+    +subs.map(x=>`<button type="button" class="zone" data-z="${esc(x.id)}" aria-pressed="${x.id===zone}" title="${esc(x.name)}">${esc(x.name)}<small>${x.n}</small></button>`).join('')
+    +`</div></div>`:'';
+  const seg=(k,lbl,opts,cur)=>`<div class="zg"><span class="zlbl">${lbl}</span><div class="seg" role="group" aria-label="${lbl}">`
+    +opts.map(([v,l,n])=>`<button type="button" data-${k}="${v}" aria-pressed="${v===cur}">${l}${n!=null?`<small>${n}</small>`:''}</button>`).join('')+`</div></div>`;
+  $('#zones').innerHTML=sido+sub
+    +`<div class="zopts">`+seg('sz','연면적',SIZES,minPy)
+    +seg('pub','구분',[['all','전체'],['priv','민간'],['pub','공공',inR.filter(b=>b.is_public).length]],pubF)
+    +`<button type="button" class="zreset" data-reset ${dirty?'':'hidden'}>초기화</button></div>`
+    +`<div class="zft"><button type="button" class="btn" data-reset ${dirty?'':'disabled'}>초기화</button><button type="button" class="btn pri" id="zDone">${nVis.toLocaleString()}곳 보기</button></div>`;
   zToggleText();
-  $('#zones').querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>setRegion(b.dataset.r));
-  $('#zones').querySelectorAll('[data-pub]').forEach(b=>b.onclick=()=>{pubF=b.dataset.pub;renderZones();drawMarkers();if(mode==='dash')renderDash();fitZone()});
-  $('#zones').querySelectorAll('[data-sz]').forEach(b=>b.onclick=()=>{minPy=+b.dataset.sz;renderZones();drawMarkers();if(mode==='dash')renderDash();fitZone()});
-  $('#zones').querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{zone=b.dataset.z;mode='dash';selId=null;renderZones();drawMarkers();renderPanel();fitZone()});
+  const Z=$('#zones'),redraw=()=>{renderZones();drawMarkers();if(mode==='dash')renderDash();fitZone()};
+  $('#zR').onchange=e=>setRegion(e.target.value);
+  Z.querySelectorAll('[data-pub]').forEach(b=>b.onclick=()=>{pubF=b.dataset.pub;redraw()});
+  Z.querySelectorAll('[data-sz]').forEach(b=>b.onclick=()=>{minPy=+b.dataset.sz;redraw()});
+  Z.querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{zone=b.dataset.z;mode='dash';selId=null;renderZones();drawMarkers();renderPanel();fitZone()});
+  Z.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{zone='all';minPy=0;pubF='all';mode='dash';selId=null;renderZones();drawMarkers();renderPanel();fitZone()});
+  $('#zDone').onclick=()=>zOpen(false);
 }
 
 /* ================= 지도 (MapLibre, 관리 빌딩만 입체) ================= */
@@ -2134,11 +2173,11 @@ function zToggleText(){
   const f=[scopeName()];if(minPy)f.push((SIZES.find(x=>x[0]===minPy)||[])[1]||'');if(pubF!=='all')f.push(pubF==='pub'?'공공':'민간');
   t.textContent=f.join(' · ');
 }
-$('#zToggle').onclick=()=>{
-  const z=$('#zones'),o=!z.classList.contains('mopen');
-  z.classList.toggle('mopen',o);$('#zToggle').setAttribute('aria-expanded',String(o));
+function zOpen(o){
+  $('#zones').classList.toggle('mopen',o);$('#zToggle').setAttribute('aria-expanded',String(o));
   if(map)setTimeout(()=>map.resize(),30);
-};
+}
+$('#zToggle').onclick=()=>zOpen(!$('#zones').classList.contains('mopen'));
 
 /* ================= 빌딩 링크 (#b=빌딩id) · 뒤로가기 ================= */
 function hashId(){const m=location.hash.match(/^#b=([^&]+)/);try{return m?decodeURIComponent(m[1]):null}catch(_){return null}}
