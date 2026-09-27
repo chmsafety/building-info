@@ -336,8 +336,11 @@ td select{width:auto;padding:4px 6px}
 .ztg{display:none}
 
 @media (max-width:860px){
-  .app{height:100vh;height:100dvh;min-height:0;grid-template-rows:auto auto 1fr auto}
-  main{grid-template-columns:1fr;min-height:0}
+  .app{height:100vh;height:100dvh;min-height:0;grid-template-rows:auto auto minmax(0,1fr) auto}
+  /* 필터(.zones)를 접으면 격자에서 빠져 줄이 밀리므로 줄 번호를 고정 */
+  .app>header{grid-row:1}.app>.zones{grid-row:2}.app>main{grid-row:3}.app>.mtabs{grid-row:4}
+  main{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr);min-height:0;height:100%}
+  main>*{min-height:0}
   #mapWrap{min-height:0;height:100%}
   #map{height:100%;min-height:0}
   body.mv-list #mapWrap{display:none}
