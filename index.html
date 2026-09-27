@@ -295,11 +295,66 @@ td select{width:auto;padding:4px 6px}
 .conf.c상{background:var(--ok);color:var(--paper)}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;z-index:4000;font-size:13px}
 
+/* 빌딩 연락처 */
+.cts{list-style:none;margin:0;padding:0;font-size:13px}
+.cts li{padding:9px 0;border-top:1px dashed var(--line);display:grid;grid-template-columns:1fr auto;gap:2px 8px}
+.cts li:first-child{border-top:0;padding-top:2px}
+.cts .nm{font-weight:700}
+.cts .m{font-size:12px;color:var(--ink2);grid-column:1/3}
+.cts .ln{grid-column:1/3;display:flex;gap:6px;flex-wrap:wrap;margin-top:3px}
+.cts .ln a{display:inline-flex;align-items:center;gap:5px;min-height:30px;padding:3px 11px;border-radius:99px;border:1px solid var(--line);font-size:12.5px;color:var(--ink);text-decoration:none;background:var(--paper)}
+.cts .ln a:hover{border-color:var(--pin)}
+.cts .ln svg{width:13px;height:13px}
+.cts .star{font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:99px;background:var(--hi);color:#1B2A2F;margin-left:5px;vertical-align:1px}
+.cts .btns{display:flex;gap:8px;align-items:flex-start;white-space:nowrap}
+.cts .x{border:0;background:none;color:var(--ink2);font-size:11px;text-decoration:underline;padding:0}
+.dchip:empty{display:none}
+/* 활동 기록 첨부파일 */
+.files{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.files button{display:inline-flex;align-items:center;gap:5px;max-width:100%;border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:3px 9px;font-size:12px;color:var(--ink)}
+.files button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.files button small{color:var(--ink2)}
+.files button:hover{border-color:var(--pin)}
+.files svg{width:12px;height:12px;flex:none}
+/* 전국 검색 결과 */
+.gs{margin:6px -12px -10px;border-top:2px solid var(--line)}
+.gs .gh{display:flex;align-items:center;gap:8px;padding:10px 12px 4px;font-size:12px;font-weight:700;color:var(--ink)}
+.gs .gh .hint{font-weight:400}
+.gs .list{margin:4px 0 0}
+.gs .rg{font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;background:var(--chip);color:var(--ink2);margin-left:5px;vertical-align:1px}
+/* 접속·변경 기록 */
+.audit .flt{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px}
+.audit .flt>div{display:grid;gap:3px}
+.audit .flt select,.audit .flt input{width:auto;min-width:120px;padding:6px 8px}
+.audit td{font-size:12.5px}
+.audit td .bn{border:0;background:none;padding:0;color:var(--pin);font-weight:600;text-align:left}
+.audit .sum{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.audit .sum span{background:var(--bg);border-radius:8px;padding:6px 10px;font-size:12px}
+.audit .sum b{font-size:15px;margin-right:3px}
+/* 모바일: 아래 탭(지도/목록) · 필터 접기 */
+.mtabs{display:none}
+.ztg{display:none}
+
 @media (max-width:860px){
-  .app{height:auto;min-height:100vh}
-  main{grid-template-columns:1fr}
-  #map{height:56vh;min-height:340px}
-  aside{border-left:0;border-top:1px solid var(--line)}
+  .app{height:100vh;height:100dvh;min-height:0;grid-template-rows:auto auto 1fr auto}
+  main{grid-template-columns:1fr;min-height:0}
+  #mapWrap{min-height:0;height:100%}
+  #map{height:100%;min-height:0}
+  body.mv-list #mapWrap{display:none}
+  body:not(.mv-list) aside{display:none}
+  aside{border-left:0;overflow:auto!important;-webkit-overflow-scrolling:touch}
+  .mtabs{display:flex;border-top:1px solid var(--line);background:var(--paper);padding-bottom:env(safe-area-inset-bottom);z-index:30}
+  .mtabs button{flex:1;border:0;background:none;padding:8px 0 7px;font-size:12px;font-weight:600;color:var(--ink2);display:flex;flex-direction:column;align-items:center;gap:2px}
+  .mtabs button svg{width:20px;height:20px}
+  .mtabs button[aria-selected="true"]{color:var(--pin);box-shadow:inset 0 3px 0 var(--pin)}
+  .mtabs b{font-size:10px;background:#D92D20;color:#fff;border-radius:99px;padding:0 5px;margin-left:3px}
+  .ztg{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:52vw;border:1px solid var(--line);background:var(--bg);border-radius:99px;padding:5px 11px;font-size:12.5px;font-weight:600}
+  .ztg span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ztg[aria-expanded="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .zones:not(.mopen){display:none}
+  .zones{max-height:48vh;overflow:auto}
+  header{gap:8px;padding:8px 12px}
+  .brand img{height:22px}
   header h1{font-size:15px}
   .kpis{grid-template-columns:repeat(2,1fr)}
   .who .nmtxt{display:none}
@@ -309,9 +364,9 @@ td select{width:auto;padding:4px 6px}
   .zone{padding:5px 10px;font-size:12.5px}
   .zlbl{width:auto;font-size:11px;margin-right:2px}
   .bidk{grid-template-columns:repeat(2,1fr)}
-  aside{overflow:visible}
   .dnav{margin:12px -18px 0}
 }
+@media (max-width:480px){header h1 span{display:none}}
 </style>
 </head>
 <body>
@@ -336,6 +391,7 @@ td select{width:auto;padding:4px 6px}
 <div id="app" class="app hidden">
   <header>
     <h1 class="brand"><img src="chm-logo.png" alt="CHM"><span>빌딩정보시스템</span></h1>
+    <button class="ztg" id="zToggle" type="button" aria-expanded="false" aria-controls="zones"><span id="zTxt">전국</span> ▾</button>
     <div class="who">
       <button id="whoBtn" aria-haspopup="menu" aria-expanded="false"><span class="nmtxt" id="whoName"></span><span class="role" id="whoRole"></span> ▾</button>
       <div class="menu hidden" id="whoMenu" role="menu">
@@ -345,6 +401,7 @@ td select{width:auto;padding:4px 6px}
         <button role="menuitem" id="mBid" class="hidden">나라장터 입찰 가져오기</button>
         <button role="menuitem" id="mSms" class="hidden">입찰 문자 알림</button>
         <button role="menuitem" id="mPhoto" class="hidden">빌딩 사진 찾기</button>
+        <button role="menuitem" id="mAudit" class="hidden">접속 · 변경 기록</button>
         <button role="menuitem" id="mBackup" class="hidden">백업 · 내려받기</button>
         <button role="menuitem" id="mCsv">CSV 내보내기</button>
         <button role="menuitem" id="mOut">로그아웃</button>
@@ -353,7 +410,7 @@ td select{width:auto;padding:4px 6px}
   </header>
   <nav class="zones" id="zones" aria-label="권역"></nav>
   <main>
-    <div style="position:relative;min-height:0">
+    <div id="mapWrap" style="position:relative;min-height:0">
       <div id="map" aria-label="지도"></div>
       <button class="btn map3d" id="v3open" type="button">실사 3D</button>
       <div class="banner hidden" id="banner" style="z-index:10">지도에서 빌딩 위치를 누르세요 · Esc 로 취소</div>
@@ -362,6 +419,10 @@ td select{width:auto;padding:4px 6px}
     </div>
     <aside id="panel"></aside>
   </main>
+  <nav class="mtabs" id="mtabs" aria-label="화면 전환">
+    <button type="button" data-mv="map" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg><span>지도</span></button>
+    <button type="button" data-mv="list" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg><span id="mtLbl">목록</span></button>
+  </nav>
 </div>
 
 <div id="modalRoot"></div>
@@ -547,12 +608,15 @@ async function enterApp(){
   $('#mSms').classList.toggle('hidden',!isAdmin());
   $('#mCsv').classList.toggle('hidden',!canEdit());
   $('#mBackup').classList.toggle('hidden',!isAdmin());
+  $('#mAudit').classList.toggle('hidden',!isAdmin());
   $('#mPhoto').classList.toggle('hidden',!canEdit());
   if(!mapInit){mapInit=true;initMap()}
   setTimeout(()=>map&&map.resize(),50);
+  const hid=hashId();   // 링크로 들어온 빌딩 (목록을 그리면 주소가 지워지니 먼저 읽어 둠)
   await loadRegions();initRegion();
   await loadAll();
   if(me.must_change_pw)openPwModal(true);
+  else if(hid)openById(hid);
 }
 /* ---------- 빌딩 목록 불러오기 ----------
    지도·목록에 쓰는 칸만 받아요. 사진 출처(photo_src)·메모(memo)처럼 상세에서만 쓰는 큰 칸은 빼고,
@@ -653,6 +717,7 @@ $('#mBid').onclick=()=>openBidSync();
 $('#mSms').onclick=()=>openSmsAlert();
 $('#mPhoto').onclick=()=>openPhotoFinder(null);
 $('#mBackup').onclick=openBackup;
+$('#mAudit').onclick=()=>openAudit();
 $('#mCsv').onclick=exportCsv;
 
 /* ================= 권역 탭 ================= */
@@ -697,6 +762,7 @@ function renderZones(){
     +SIZES.map(([v,l])=>`<button class="zone" data-sz="${v}" aria-pressed="${v===minPy}">${l}</button>`).join('')
     +`<span class="zlbl" style="margin-left:10px">구분</span>`
     +[['all','전체'],['priv','민간'],['pub','공공']].map(([v,l])=>`<button class="zone" data-pub="${v}" aria-pressed="${v===pubF}">${l}${v==='pub'?`<small>${inR.filter(b=>b.is_public).length}</small>`:''}</button>`).join('')+`</div>`;
+  zToggleText();
   $('#zones').querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>setRegion(b.dataset.r));
   $('#zones').querySelectorAll('[data-pub]').forEach(b=>b.onclick=()=>{pubF=b.dataset.pub;renderZones();drawMarkers();if(mode==='dash')renderDash();fitZone()});
   $('#zones').querySelectorAll('[data-sz]').forEach(b=>b.onclick=()=>{minPy=+b.dataset.sz;renderZones();drawMarkers();if(mode==='dash')renderDash();fitZone()});
@@ -740,7 +806,7 @@ async function initMap(){
   map.on('click',e=>{
     if(placing&&draft){
       draft.lat=+e.lngLat.lat.toFixed(6);draft.lng=+e.lngLat.lng.toFixed(6);
-      setPlacing(false);renderEdit();drawTmp();return;
+      setPlacing(false);renderEdit();drawTmp();if(isMobile())setMView('list');return;
     }
     if(!mapReady)return;
     const f=map.queryRenderedFeatures(e.point,{layers:['bld-circle','bld-label'].filter(id=>map.getLayer(id))})[0];
@@ -971,7 +1037,7 @@ $('#v3close').onclick=close3D;
 /* ================= 오른쪽 패널 ================= */
 function renderPanel(){if(mode==='detail')return renderDetail();if(mode==='edit'&&draft)return renderEdit();mode='dash';renderDash()}
 function renderDash(){
-  listMore=0;   // 조건이 바뀌면 목록은 다시 앞부분부터
+  listMore=0;mtLabel();clearHash();   // 조건이 바뀌면 목록은 다시 앞부분부터
   const p=$('#panel');const vis=visible();
   const zb=buildings.filter(inZone);
   const g=zb.reduce((s,b)=>s+(+b.gfa||0),0),st=zb.reduce((s,b)=>s+staffTotal(b),0),withFM=zb.filter(hasFM).length;
@@ -1000,6 +1066,7 @@ function renderDash(){
     <label class="keep" style="margin-top:8px"><input type="checkbox" id="bidany" ${bidAny?'checked':''}> 입찰 이력 있는 빌딩만</label>
     <label class="keep" style="margin-top:8px"><input type="checkbox" id="myonly" ${myOnly?'checked':''}> 내 담당만</label></div>
     <div id="blist">${listHtml(vis,zb)}</div>
+    <div id="gsr"></div>
     </div></div>
     ${bidBox(zb)}
     <div class="sbox"><div class="hd">${hdBtn('cos','관리회사별 빌딩 수')}<span class="hint">시설·보안·미화 · ${rows.filter(r=>r.name!=='__none').length}개사</span></div>
@@ -1008,7 +1075,8 @@ function renderDash(){
     <div class="hint" style="margin-top:4px">회사를 누르면 빌딩 목록이 그 회사 빌딩으로 좁혀지고, 한 번 더 누르거나 ‘전체 보기’를 누르면 돌아와요. 한 빌딩에 시설·보안·미화 회사가 다르면 각 회사에 모두 세요.</div>`:'<div class="hint">빌딩이 없어요.</div>'}
     </div></div>
   </div>`;
-  const qi=$('#q');qi.oninput=()=>{query=qi.value;listMore=0;drawMarkers();refreshList()};   // 입력칸은 다시 그리지 않음 (한글 조합이 끊기지 않게)
+  const qi=$('#q');qi.oninput=()=>{query=qi.value;listMore=0;drawMarkers();refreshList();gSearchSoon()};
+  gSearchSoon(0);   // 입력칸은 다시 그리지 않음 (한글 조합이 끊기지 않게)
   $('#miss').onchange=e=>{onlyMissing=e.target.checked;drawMarkers();renderDash()};
   $('#bidonly').onchange=e=>{bidOnly=e.target.checked;drawMarkers();renderDash();if(bidOnly)fitZone()};
   $('#bidany').onchange=e=>{bidAny=e.target.checked;drawMarkers();renderDash();if(bidAny)fitZone()};
@@ -1032,7 +1100,9 @@ function bindList(root){root.querySelectorAll('.list [data-id]').forEach(b=>b.on
   root.querySelectorAll('[data-more]').forEach(b=>b.onclick=()=>{listMore++;refreshList()});
   root.querySelectorAll('[data-clr]').forEach(b=>b.onclick=()=>{query='';onlyMissing=false;bidOnly=false;bidAny=false;stageF='all';myOnly=false;drawMarkers();renderDash();fitZone()})}
 function refreshList(){const el=$('#blist');if(!el)return renderDash();el.innerHTML=listHtml(visible(),buildings.filter(inZone));bindList(el)}
-function openDetail(id,fly){
+function openDetail(id,fly,fromNav){
+  if(!fromNav)pushHash(id);
+  if(isMobile())setMView('list');
   selId=id;mode='detail';photoIdx=0;delArm=false;phTab=null;setPlacing(false);drawMarkers();renderDetail();$('#panel').scrollTop=0;
   const b=buildings.find(x=>x.id===id);
   if(fly&&b)flyToB(b);
@@ -1045,9 +1115,10 @@ async function photoUrls(paths){
   return paths.map(p=>signed.get(p)?.url||'');
 }
 /* ---------- 빌딩 상세: 항목별 카드(색 띠 + 아이콘 머리) · 바로가기 · 접기/펴기(기기에 기억) ---------- */
-const SEC_COL={basic:'#0E8A94',fm:'#2E90FA',staff:'#6172F3',hist:'#9E77ED',contract:'#DC6803',sales:'#12B76A',bid:'#D92D20',log:'#667085'};
+const SEC_COL={basic:'#0E8A94',fm:'#2E90FA',contact:'#0BA5EC',staff:'#6172F3',hist:'#9E77ED',contract:'#DC6803',sales:'#12B76A',bid:'#D92D20',log:'#667085'};
 const SVG=d=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const SEC_IC={
+  contact:SVG('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>'),
   basic:SVG('<rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2M10 21v-3h4v3"/>'),
   fm:SVG('<path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3 17.8V21h3.2l6.3-6.3a4 4 0 0 0 5.2-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>'),
   staff:SVG('<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.2a3 3 0 0 1 0 5.6M18 14.8c1.8.7 3 2.5 3 5.2"/>'),
@@ -1057,7 +1128,7 @@ const SEC_IC={
   bid:SVG('<path d="M4 10l9-5v14l-9-5z"/><path d="M13 7a5 5 0 0 1 0 10M8 15l1.5 5"/>'),
   log:SVG('<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>')
 };
-const SEC_SHORT={basic:'기본',fm:'시설관리',staff:'인력',hist:'업체 이력',contract:'계약',sales:'영업',bid:'입찰',log:'변경 이력'};
+const SEC_SHORT={basic:'기본',fm:'시설관리',contact:'연락처',staff:'인력',hist:'업체 이력',contract:'계약',sales:'영업',bid:'입찰',log:'변경 이력'};
 const dOpen=k=>OPEN['d_'+k]!==false;
 function dsec(k,title,body,extra){
   const on=dOpen(k);
@@ -1077,9 +1148,11 @@ function bindDsec(root){
     if(s.classList.contains('off'))setDsec(s,true);s.scrollIntoView({behavior:'smooth',block:'start'})});
 }
 /* 상세 → 목록으로 (버튼 · Esc) */
-function backToList(){if(mode!=='detail')return;mode='dash';selId=null;drawMarkers();renderDash();$('#panel').scrollTop=0}
+function backToList(){if(mode!=='detail')return;if(history.state&&history.state.b){history.back();return}closeDetail()}
+function closeDetail(){mode='dash';selId=null;drawMarkers();renderDash();$('#panel').scrollTop=0}
 addEventListener('keydown',e=>{if(e.key==='Escape'&&mode==='detail'&&!placing&&!$('#modalRoot').firstChild&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||''))backToList()});
 async function renderDetail(){
+  mtLabel();
   const p=$('#panel');const b=buildings.find(x=>x.id===selId);
   if(!b){mode='dash';return renderDash()}
   if(!b.__full){await ensureFull(b);if(selId!==b.id||mode!=='detail')return}   // 메모·사진 출처는 여기서 받아요
@@ -1103,6 +1176,9 @@ async function renderDetail(){
       <dt>담당자</dt><dd>${esc(b.fm?.manager||'—')}</dd><dt>연락처</dt><dd>${esc(b.fm?.contact||'—')}</dd><dt>계약기간</dt><dd>${esc(b.fm?.period||'—')}</dd>${b.fm?.source?`<dt>출처</dt><dd>${srcLink(b.fm.source)}${b.fm.checked_at?' <span class="hint">· '+esc(b.fm.checked_at)+' 반영</span>':''}</dd>`:''}</dl>
       ${sugs.map(x=>sugCard(x,false)).join('')}`,
       sugs.length?`<span class="dchip warn">검토 대기 ${sugs.length}</span>`:(hasFM(b)?'':'<span class="dchip warn">미입력</span>')],
+    ['contact','연락처',`<ul class="cts" id="ctList"><li class="m">불러오는 중…</li></ul>
+      ${canEdit()?'<button class="btn" id="ctAdd" type="button" style="margin-top:8px;padding:4px 10px;font-size:12px">연락처 추가</button>':''}`,
+      '<span class="dchip" id="ctCnt"></span>'],
     ['staff','관리 인력',CATS.map(([k,l])=>{const s=b.staff?.[k]||{};const n=+s.n||0;return `<div class="srow"><span>${l}</span><div class="bar"><i style="width:${n/mx*100}%"></i></div><span class="n">${n}명</span>${s.company?`<span class="scomp">${esc(s.company)}</span>`:''}</div>`}).join(''),
       `<span class="dchip">총 ${staffTotal(b)}명</span>`],
     ['hist','관리업체 이력',histBox(b),''],
@@ -1122,7 +1198,7 @@ async function renderDetail(){
     <div class="thumbs" id="thumbs"></div>
     ${canEdit()?`<button class="btn" id="phFind" type="button" style="margin-top:6px;padding:4px 10px;font-size:12px">웹에서 사진 찾기</button>`:''}
     <div class="dhead"><div><h2>${esc(b.name)}${b.is_public?'<span class="pubtag">공공</span>':''}</h2><p class="hint" style="margin:0">${esc(b.address||'주소 미입력')}</p></div>
-      ${canEdit()?'<button class="btn" id="edit0" type="button">정보 수정</button>':''}</div>
+      <div style="display:flex;gap:6px;flex:none"><button class="btn" id="share" type="button" title="이 빌딩으로 바로 오는 주소를 복사해요">링크 공유</button>${canEdit()?'<button class="btn" id="edit0" type="button">정보 수정</button>':''}</div></div>
     <nav class="dnav" aria-label="항목 바로가기"><button type="button" class="dback" id="back2" title="${esc(scopeName())} 빌딩 목록으로">← 목록</button>${S.map(([k,t])=>`<button type="button" data-go="${k}" style="--ac:${SEC_COL[k]}"><i></i>${SEC_SHORT[k]||t}</button>`).join('')}</nav>
     ${S.map(([k,t,body,extra])=>dsec(k,t,body,extra)).join('')}
     ${canEdit()?`<div class="actions"><button class="btn pri" id="edit">정보 수정</button>${isAdmin()?`<button class="btn warn" id="del">${delArm?'정말 삭제':'삭제'}</button>`:''}</div>`:''}
@@ -1135,7 +1211,9 @@ async function renderDetail(){
   p.querySelectorAll('[data-pt]').forEach(t=>t.onclick=()=>{if(t.dataset.pt!==tab){phTab=t.dataset.pt;renderDetail()}});
   bindSug($('#panel'));bindBidList($('#panel'),renderDetail);bindSales($('#panel'),b);
   if($('#fmhAdd'))$('#fmhAdd').onclick=()=>openHistEdit(b,null);
-  loadHist(b);
+  if($('#ctAdd'))$('#ctAdd').onclick=()=>openContactEdit(b,null);
+  $('#share').onclick=()=>shareBuilding(b);
+  loadHist(b);loadContacts(b);
   if($('#del'))$('#del').onclick=async()=>{if(!delArm){delArm=true;return renderDetail()}
     const {error}=await sb.from('buildings').delete().eq('id',b.id);
     if(error)return toast('삭제하지 못했어요: '+error.message);
@@ -1181,6 +1259,7 @@ function cleanModel(m){
   if(m.vw&&m.vw.td_id)o.vw=m.vw;return o;
 }
 async function renderEdit(){
+  mtLabel();
   const p=$('#panel');const d=draft;const val=x=>esc(x??'');const bx=box(d);
   p.innerHTML=`<div class="pad"><button class="back" id="cancel">← 취소</button>
   <h2 style="margin-top:0">${d.isNew?'빌딩 추가':'정보 수정'}</h2>
@@ -1228,7 +1307,7 @@ async function renderEdit(){
   const gm=$('#gfa_m2'),gp=$('#gfa_py');
   gm.oninput=()=>{const x=+gm.value.replace(/,/g,'');gp.value=x?Math.round(x/PY):''};
   gp.oninput=()=>{const x=+gp.value.replace(/,/g,'');gm.value=x?Math.round(x*PY):''};
-  $('#place').onclick=()=>{collect();setPlacing(true);if(innerWidth<=860)$('#map').scrollIntoView({behavior:'smooth'})};
+  $('#place').onclick=()=>{collect();setPlacing(true);if(isMobile())setMView('map')};
   $('#geo').onclick=geocode;
   $('#pf').onchange=uploadPhotos;
   if($('#pfWeb'))$('#pfWeb').onclick=()=>{collect();openPhotoFinder([d.id],d)};
@@ -1971,6 +2050,7 @@ function salesDetail(b){
     ${canEdit()?`<div class="sgrid" style="margin-top:8px"><div class="f"><label for="aDay">날짜</label><input id="aDay" type="date" value="${esc(ymdStr(new Date()))}"></div>
       <div class="f"><label for="aKind">유형</label><select id="aKind">${ACT_KINDS.map(k=>`<option>${k}</option>`).join('')}</select></div></div>
       <div class="f"><label for="aNote">내용</label><textarea id="aNote" rows="2" maxlength="2000" placeholder="만난 사람, 오간 이야기, 다음 약속"></textarea></div>
+      <div class="f"><label for="aFiles">첨부파일 (선택 · 여러 개 가능 · 1개 20MB 이하)</label><input id="aFiles" type="file" multiple accept="${esc(FILE_ACCEPT)}"><div class="hint">제안서·견적서·사진·명함 등. 회사 계정이 있는 사람만 내려받을 수 있어요.</div></div>
       <button class="btn" id="aAdd" type="button">활동 기록 추가</button>`:''}`;
 }
 function bindSales(root,b){
@@ -1990,12 +2070,29 @@ function bindSales(root,b){
   const add=root.querySelector('#aAdd');
   if(add)add.onclick=async()=>{
     const note=root.querySelector('#aNote').value.trim();
-    if(!note)return toast('내용을 입력하세요');
-    add.disabled=true;
-    const {error}=await sb.from('sales_activities').insert({building_id:b.id,day:root.querySelector('#aDay').value||null,kind:root.querySelector('#aKind').value,note});
-    add.disabled=false;
-    if(error)return toast('기록하지 못했어요: '+error.message);
-    root.querySelector('#aNote').value='';toast('활동을 기록했어요');loadActs(b);
+    const fin=root.querySelector('#aFiles'),picked=fin?[...fin.files]:[];
+    if(!note&&!picked.length)return toast('내용을 입력하세요');
+    const big=picked.find(f=>f.size>FILE_MAX);if(big)return toast(`‘${big.name}’ 은(는) 20MB를 넘어요`);
+    add.disabled=true;const label=add.textContent;
+    const files=[];
+    try{
+      for(const [i,f] of picked.entries()){
+        add.textContent=`파일 올리는 중 ${i+1}/${picked.length}…`;
+        const ext=(f.name.match(/\.([A-Za-z0-9]{1,8})$/)||[])[1]||'bin';
+        const path=`${b.id}/${crypto.randomUUID()}.${ext.toLowerCase()}`;
+        const up=await sb.storage.from('sales-files').upload(path,f,{contentType:f.type||'application/octet-stream',upsert:false});
+        if(up.error)throw new Error(up.error.message);
+        files.push({path,name:f.name.slice(0,200),size:f.size,type:f.type||''});
+      }
+      const {error}=await sb.from('sales_activities').insert({building_id:b.id,day:root.querySelector('#aDay').value||null,kind:root.querySelector('#aKind').value,note:note||'(첨부파일)',...(files.length?{files}:{})});
+      if(error)throw new Error(error.message);
+    }catch(e){
+      if(files.length)sb.storage.from('sales-files').remove(files.map(x=>x.path)).catch(()=>{});
+      add.disabled=false;add.textContent=label;
+      return toast(/bucket|not found/i.test(e.message)?'첨부 저장소가 아직 없어요. supabase/14_contacts_files_audit.sql 을 먼저 실행하세요.':'기록하지 못했어요: '+e.message);
+    }
+    add.disabled=false;add.textContent=label;
+    root.querySelector('#aNote').value='';if(fin)fin.value='';toast(files.length?`활동과 파일 ${files.length}개를 기록했어요`:'활동을 기록했어요');loadActs(b);
   };
   loadActs(b);
 }
@@ -2006,12 +2103,263 @@ async function loadActs(b){
   if(error){el.innerHTML='<li class="m">활동 기록을 불러오지 못했어요.</li>';return}
   if(!data||!data.length){el.innerHTML='<li class="m">아직 기록이 없어요.</li>';return}
   el.innerHTML=data.map(a=>`<li>${canEdit()&&(a.user_id===me.id||isAdmin())?`<button class="x" type="button" data-adel="${a.id}">지우기</button>`:''}
-    <span class="m">${esc(a.day)} · ${esc(a.kind)} · ${esc(names[a.user_id]||'')}</span><div>${esc(a.note)}</div></li>`).join('');
+    <span class="m">${esc(a.day)} · ${esc(a.kind)} · ${esc(names[a.user_id]||'')}</span><div>${esc(a.note)}</div>${fileChips(a.files)}</li>`).join('');
   el.querySelectorAll('[data-adel]').forEach(x=>x.onclick=async()=>{
+    const a=data.find(y=>y.id===+x.dataset.adel);const fl=Array.isArray(a?.files)?a.files:[];
+    if(fl.length&&!confirm(`첨부파일 ${fl.length}개도 함께 지워져요. 지울까요?`))return;
     const {error}=await sb.from('sales_activities').delete().eq('id',+x.dataset.adel);
     if(error)return toast('지우지 못했어요: '+error.message);
+    if(fl.length)sb.storage.from('sales-files').remove(fl.map(f=>f.path)).catch(()=>{});
     loadActs(b);
   });
+  bindFileChips(el);
+}
+
+/* ================= 모바일 화면 (아래 탭: 지도 / 목록·상세) · 필터 접기 ================= */
+const MQ=matchMedia('(max-width:860px)');
+const isMobile=()=>MQ.matches;
+function setMView(v){
+  document.body.classList.toggle('mv-list',v==='list');
+  document.querySelectorAll('#mtabs [data-mv]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.mv===v)));
+  if(v==='map'&&map)setTimeout(()=>map.resize(),30);
+}
+function mtLabel(){const l=$('#mtLbl');if(l)l.textContent=mode==='detail'?'상세':mode==='edit'?'편집':'목록'}
+document.querySelectorAll('#mtabs [data-mv]').forEach(b=>b.onclick=()=>setMView(b.dataset.mv));
+MQ.addEventListener('change',()=>{if(map)setTimeout(()=>map.resize(),60)});
+function zToggleText(){
+  const t=$('#zTxt');if(!t)return;
+  const f=[scopeName()];if(minPy)f.push((SIZES.find(x=>x[0]===minPy)||[])[1]||'');if(pubF!=='all')f.push(pubF==='pub'?'공공':'민간');
+  t.textContent=f.join(' · ');
+}
+$('#zToggle').onclick=()=>{
+  const z=$('#zones'),o=!z.classList.contains('mopen');
+  z.classList.toggle('mopen',o);$('#zToggle').setAttribute('aria-expanded',String(o));
+  if(map)setTimeout(()=>map.resize(),30);
+};
+
+/* ================= 빌딩 링크 (#b=빌딩id) · 뒤로가기 ================= */
+function hashId(){const m=location.hash.match(/^#b=([^&]+)/);try{return m?decodeURIComponent(m[1]):null}catch(_){return null}}
+const bHash=id=>'#b='+encodeURIComponent(id);
+function pushHash(id,replace){
+  const h=bHash(id);if(location.hash===h&&history.state&&history.state.b===id)return;
+  // 상세 → 다른 빌딩 상세는 바꿔치기: 뒤로가기는 언제나 목록으로
+  if(replace||(history.state&&history.state.b))history.replaceState({b:id},'',h);
+  else history.pushState({b:id},'',h);
+}
+function clearHash(){if(/^#b=/.test(location.hash))history.replaceState(null,'',location.pathname+location.search)}
+addEventListener('popstate',()=>{
+  if(!me)return;
+  const id=hashId();
+  if(mode==='edit'){   // 편집 중엔 떠나지 않게
+    history.pushState(selId?{b:selId}:null,'',selId?bHash(selId):location.pathname+location.search);
+    toast('편집 중이에요. 저장하거나 취소한 뒤 이동하세요.');return;
+  }
+  closeModal();
+  if(id){if(id!==selId||mode!=='detail')openById(id,true)}
+  else if(mode==='detail')closeDetail();
+});
+/* id 로 빌딩 열기 — 지금 불러온 시도에 없으면 그 시도로 옮겨서 */
+async function openById(id,fromNav){
+  if(!buildings.some(b=>b.id===id)){
+    const {data}=await sb.from('buildings').select('id,region').eq('id',id).maybeSingle();
+    if(!data){toast('이 링크의 빌딩을 찾을 수 없어요 (지워졌거나 권한이 없어요)');clearHash();return}
+    await setRegion(data.region&&REGIONS.some(r=>r.region===data.region)?data.region:'ALL');
+    if(!buildings.some(b=>b.id===id)){toast('빌딩을 불러오지 못했어요');return}
+  }
+  if(fromNav)pushHash(id,true);
+  openDetail(id,true,fromNav);
+}
+async function shareBuilding(b){
+  const url=location.origin+location.pathname+bHash(b.id);
+  if(isMobile()&&navigator.share){
+    try{await navigator.share({title:b.name,text:b.name+' · CHM 빌딩정보시스템',url});return}catch(e){if(e&&e.name==='AbortError')return}
+  }
+  try{await navigator.clipboard.writeText(url);toast('링크를 복사했어요 — 카톡·메일에 붙여 넣으세요 (로그인한 사람만 열 수 있어요)')}
+  catch(_){
+    const m=modal(`<h2>링크 공유</h2><p class="hint" style="margin:0 0 8px">아래 주소를 복사해 보내세요. 로그인한 사람만 열 수 있어요.</p>
+      <input id="shU" readonly value="${esc(url)}"><div class="actions"><button class="btn" id="shX" type="button">닫기</button></div>`);
+    const i=m.querySelector('#shU');i.focus();i.select();m.querySelector('#shX').onclick=closeModal;
+  }
+}
+
+/* ================= 전국 검색 (지금 조건 밖의 빌딩도 서버에서 찾기) ================= */
+let gsT=null,gsSeq=0;
+function gSearchSoon(ms){clearTimeout(gsT);gsT=setTimeout(gSearch,ms==null?350:ms)}
+async function gSearch(){
+  const el=$('#gsr');if(!el)return;
+  const q=query.trim();
+  if(q.length<2){el.innerHTML='';return}
+  const my=++gsSeq;
+  const {data,error}=await sb.rpc('search_buildings',{q});
+  if(my!==gsSeq||!$('#gsr')||query.trim()!==q)return;
+  if(error||!data){el.innerHTML='';return}
+  const shown=new Set(visible().map(b=>b.id));
+  const rest=data.filter(r=>!shown.has(r.id));
+  if(!rest.length){el.innerHTML='';return}
+  el.innerHTML=`<div class="gs"><div class="gh">다른 지역·조건에서 찾은 빌딩 ${rest.length}${data.length>=60?'+':''}곳 <span class="hint">누르면 그 지역으로 옮겨서 열어요</span></div>
+    <ul class="list">${rest.map(r=>`<li><button type="button" data-gid="${esc(r.id)}"><span class="nm">${esc(r.name)}<span class="rg">${esc(r.region||'지역 없음')}</span></span>
+      <span class="num">${fmtPy(r.gfa)}</span><span class="sub">${esc([r.district,r.address].filter(Boolean).join(' · '))}${r.company?' · '+esc(r.company):''}</span></button></li>`).join('')}</ul></div>`;
+  el.querySelectorAll('[data-gid]').forEach(x=>x.onclick=()=>openGlobal(x.dataset.gid));
+}
+async function openGlobal(id){
+  // 지도에도 보이도록 세부 조건은 풀어요 (검색어는 시도를 옮기면 비워져요)
+  zone='all';minPy=0;pubF='all';onlyMissing=false;bidOnly=false;bidAny=false;stageF='all';myOnly=false;
+  if(buildings.some(b=>b.id===id)){query='';renderZones();drawMarkers()}
+  await openById(id);
+}
+
+/* ================= 빌딩 연락처 (여러 명) ================= */
+const CT_ORGS=['관리사무소','시설관리회사','자산관리(AM·PM)','소유주 측','발주처','임차사','기타'];
+const ICO_TEL=SVG('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>');
+const ICO_MAIL=SVG('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>');
+const telHref=p=>'tel:'+String(p||'').replace(/[^\d+]/g,'');
+let ctRows=[];
+async function loadContacts(b){
+  const box=$('#ctList');if(!box)return;
+  const {data,error}=await sb.from('contacts').select('*').eq('building_id',b.id).order('is_primary',{ascending:false}).order('id');
+  const el=$('#ctList');if(!el||selId!==b.id||mode!=='detail')return;
+  if(error){el.innerHTML=`<li class="m">${/does not exist|relation|schema cache/i.test(error.message)?'연락처 저장 칸이 아직 없어요. Supabase 에서 <b>supabase/14_contacts_files_audit.sql</b> 을 실행하세요.':'불러오지 못했어요: '+esc(error.message)}</li>`;return}
+  ctRows=data||[];
+  const cnt=$('#ctCnt');if(cnt)cnt.textContent=ctRows.length?ctRows.length+'명':'';
+  if(!ctRows.length){el.innerHTML=`<li class="m">등록된 연락처가 없어요.${canEdit()?' 관리소장·발주 담당·소유주 측 담당자 등을 여러 명 넣을 수 있어요.':''}</li>`;return}
+  el.innerHTML=ctRows.map(c=>`<li>
+    <span><span class="nm">${esc(c.name)}</span>${c.is_primary?'<span class="star">대표</span>':''}</span>
+    ${canEdit()?`<span class="btns"><button class="x" type="button" data-ce="${c.id}">고치기</button><button class="x" type="button" data-cd="${c.id}">지우기</button></span>`:'<span></span>'}
+    ${c.org||c.title?`<span class="m">${esc([c.org,c.title].filter(Boolean).join(' · '))}</span>`:''}
+    ${c.phone||c.email?`<span class="ln">${c.phone?`<a href="${esc(telHref(c.phone))}">${ICO_TEL}${esc(c.phone)}</a>`:''}${c.email?`<a href="mailto:${esc(c.email)}">${ICO_MAIL}${esc(c.email)}</a>`:''}</span>`:''}
+    ${c.memo?`<span class="m" style="color:var(--ink)">${esc(c.memo)}</span>`:''}
+    <span class="m" style="font-size:11px">${c.updated_by&&names[c.updated_by]?esc(names[c.updated_by])+' · ':''}${esc(fmtDay(c.updated_at))}</span>
+  </li>`).join('');
+  el.querySelectorAll('[data-ce]').forEach(x=>x.onclick=()=>openContactEdit(b,ctRows.find(c=>c.id===+x.dataset.ce)));
+  el.querySelectorAll('[data-cd]').forEach(x=>x.onclick=async()=>{
+    const c=ctRows.find(y=>y.id===+x.dataset.cd);if(!c||!confirm(`‘${c.name}’ 연락처를 지울까요?`))return;
+    const {error}=await sb.from('contacts').delete().eq('id',c.id);
+    if(error)return toast('지우지 못했어요: '+error.message);
+    toast('연락처를 지웠어요');loadContacts(b);
+  });
+}
+function openContactEdit(b,c){
+  if(!canEdit())return;
+  const d=c||{name:'',org:'',title:'',phone:'',email:'',memo:'',is_primary:!ctRows.length};
+  const m=modal(`<h2>${c?'연락처 고치기':'연락처 추가'}</h2>
+    <p class="hint" style="margin:0">${esc(b.name)}</p>
+    <form onsubmit="return false" style="margin-top:10px">
+    <div class="sgrid"><div class="f"><label for="cN">이름 *</label><input id="cN" maxlength="60" value="${esc(d.name)}" autocomplete="off"></div>
+      <div class="f"><label for="cT">직책</label><input id="cT" maxlength="60" value="${esc(d.title||'')}" placeholder="예: 관리소장"></div></div>
+    <div class="f"><label for="cO">소속</label><input id="cO" maxlength="60" list="cOl" value="${esc(d.org||'')}" placeholder="골라도 되고 직접 써도 돼요"><datalist id="cOl">${CT_ORGS.map(o=>`<option value="${esc(o)}">`).join('')}</datalist></div>
+    <div class="sgrid"><div class="f"><label for="cP">전화</label><input id="cP" maxlength="40" inputmode="tel" value="${esc(d.phone||'')}" placeholder="010-0000-0000"></div>
+      <div class="f"><label for="cE">이메일</label><input id="cE" maxlength="120" type="email" inputmode="email" value="${esc(d.email||'')}"></div></div>
+    <div class="f"><label for="cM">메모</label><input id="cM" maxlength="500" value="${esc(d.memo||'')}" placeholder="예: 오전 통화 선호, 2025년 입찰 담당"></div>
+    <label class="keep"><input type="checkbox" id="cS" ${d.is_primary?'checked':''}> 대표 연락처 (목록 맨 위에 표시)</label>
+    <div class="actions"><button class="btn pri" id="cOk" type="submit">저장</button><button class="btn" id="cX" type="button">취소</button></div>
+    <div class="err" id="cErr"></div></form>`);
+  m.querySelector('#cN').focus();
+  m.querySelector('#cX').onclick=closeModal;
+  m.querySelector('#cOk').onclick=async()=>{
+    const v=id=>m.querySelector(id).value.trim(),er=m.querySelector('#cErr');er.textContent='';
+    const row={building_id:b.id,name:v('#cN'),org:v('#cO')||null,title:v('#cT')||null,phone:v('#cP')||null,email:v('#cE')||null,memo:v('#cM')||null,is_primary:m.querySelector('#cS').checked};
+    if(!row.name){er.textContent='이름을 넣으세요.';return}
+    if(row.phone&&!/^[\d\s()+\-~.,/내선ext]+$/i.test(row.phone)){er.textContent='전화번호를 확인하세요.';return}
+    if(row.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)){er.textContent='이메일 주소를 확인하세요.';return}
+    const ok=m.querySelector('#cOk');ok.disabled=true;
+    const res=c?await sb.from('contacts').update(row).eq('id',c.id).select('id').maybeSingle():await sb.from('contacts').insert(row).select('id').maybeSingle();
+    if(res.error||!res.data){ok.disabled=false;er.textContent=res.error?(/does not exist|relation|schema cache/i.test(res.error.message)?'연락처 저장 칸이 아직 없어요. supabase/14_contacts_files_audit.sql 을 먼저 실행하세요.':'저장하지 못했어요: '+res.error.message):'저장 권한이 없어요.';return}
+    if(row.is_primary)await sb.from('contacts').update({is_primary:false}).eq('building_id',b.id).eq('is_primary',true).neq('id',res.data.id);
+    closeModal();toast(c?'연락처를 고쳤어요':'연락처를 넣었어요');loadContacts(b);
+  };
+}
+
+/* ================= 영업 활동 첨부파일 ================= */
+const FILE_MAX=20*1024*1024;
+const FILE_ACCEPT='.pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.jpg,.jpeg,.png,.webp,.gif,.heic';
+const ICO_CLIP=SVG('<path d="m21.4 11.1-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/>');
+function fileChips(fl){
+  fl=Array.isArray(fl)?fl:[];if(!fl.length)return '';
+  return `<div class="files">${fl.map(f=>`<button type="button" data-fp="${esc(f.path)}" data-fn="${esc(f.name)}" title="${esc(f.name)} 내려받기">${ICO_CLIP}<span>${esc(f.name)}</span><small>${esc(kb(f.size))}</small></button>`).join('')}</div>`;
+}
+function bindFileChips(root){
+  root.querySelectorAll('[data-fp]').forEach(x=>x.onclick=async()=>{
+    x.disabled=true;
+    const {data,error}=await sb.storage.from('sales-files').createSignedUrl(x.dataset.fp,120,{download:x.dataset.fn});
+    x.disabled=false;
+    if(error||!data||!data.signedUrl)return toast('파일을 열지 못했어요'+(error?': '+error.message:''));
+    const a=document.createElement('a');a.href=data.signedUrl;a.rel='noopener';document.body.appendChild(a);a.click();a.remove();
+  });
+}
+
+/* ================= 접속 · 변경 기록 (관리자) ================= */
+function openAudit(){
+  if(!isAdmin())return;
+  let tab='login',rows=[],page=0;const PG=200;
+  const m=modal(`<div class="audit"><h2>접속 · 변경 기록</h2>
+    <p class="hint" style="margin:0">누가 언제 로그인했는지, 빌딩·영업·활동 기록·연락처를 누가 언제 바꿨는지 볼 수 있어요. 관리자만 볼 수 있어요.</p>
+    <div class="tabs"><button class="zone" type="button" data-at="login">로그인 기록</button><button class="zone" type="button" data-at="change">변경 기록</button></div>
+    <div class="flt">
+      <div><label for="auU">사람</label><select id="auU"><option value="">전체</option>${people.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></div>
+      <div><label for="auD">기간</label><select id="auD">${[[1,'오늘'],[7,'최근 7일'],[30,'최근 30일'],[90,'최근 90일'],[365,'최근 1년']].map(([v,l])=>`<option value="${v}" ${v===30?'selected':''}>${l}</option>`).join('')}</select></div>
+      <div id="auQw"><label for="auQ">빌딩명</label><input id="auQ" placeholder="빌딩 이름 일부" maxlength="60"></div>
+      <button class="btn" id="auCsv" type="button">CSV 저장</button>
+    </div>
+    <div class="sum" id="auSum"></div>
+    <div class="tbl" id="auBody" style="margin-top:10px">불러오는 중…</div>
+    <div class="actions"><button class="btn hidden" id="auMore" type="button">더 보기</button><button class="btn" id="auX" type="button">닫기</button></div></div>`);
+  const $m=s=>m.querySelector(s);
+  const since=()=>{const d=+$m('#auD').value;return d===1?today0():new Date(Date.now()-d*DAY)};
+  const tm=t=>new Date(t).toLocaleString('ko-KR',{year:'2-digit',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const who=u=>u?(names[u]||'(지운 계정)'):'시스템';
+  let sumRows=[];
+  const draw=()=>{
+    m.querySelectorAll('[data-at]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.at===tab)));
+    $m('#auQw').classList.toggle('hidden',tab!=='change');
+    const body=$m('#auBody'),sum=$m('#auSum');
+    if(tab==='login'){
+      const by={};for(const r of sumRows){const e=by[r.user_id]||(by[r.user_id]={n:0,last:r.at});e.n++;if(r.at>e.last)e.last=r.at}
+      const uidF=$m('#auU').value;
+      const ppl=people.filter(p=>!uidF||p.id===uidF).map(p=>({p,e:by[p.id]})).sort((a,b)=>(b.e?.n||0)-(a.e?.n||0)||String(a.p.name).localeCompare(String(b.p.name),'ko'));
+      const idle=ppl.filter(x=>!x.e).length;
+      sum.innerHTML=`<span><b>${sumRows.length}</b>회 로그인</span><span><b>${Object.keys(by).length}</b>명 사용</span>${!uidF&&idle?`<span><b>${idle}</b>명은 이 기간에 로그인 안 함</span>`:''}`;
+      body.innerHTML=`<table><thead><tr><th>사람</th><th>로그인 횟수</th><th>마지막 로그인</th></tr></thead><tbody>${ppl.map(x=>`<tr><td>${esc(x.p.name)}</td><td>${x.e?x.e.n+'회':'<span class="hint">없음</span>'}</td><td class="hint">${x.e?esc(tm(x.e.last)):'—'}</td></tr>`).join('')}</tbody></table>
+        <h3>최근 로그인</h3>${rows.length?`<table><thead><tr><th>때</th><th>사람</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="hint" style="white-space:nowrap">${esc(tm(r.at))}</td><td>${esc(who(r.user_id))}</td></tr>`).join('')}</tbody></table>`:'<p class="hint">기록이 없어요.</p>'}`;
+    }else{
+      sum.innerHTML=`<span><b>${rows.length}${$m('#auMore').classList.contains('hidden')?'':'+'}</b>건</span>`;
+      body.innerHTML=rows.length?`<table><thead><tr><th>때</th><th>사람</th><th>내용</th><th>빌딩</th></tr></thead><tbody>${rows.map(r=>`<tr>
+        <td class="hint" style="white-space:nowrap">${esc(tm(r.at))}</td><td style="white-space:nowrap">${esc(who(r.user_id))}</td>
+        <td>${esc(r.action)}${r.fields&&r.fields.length&&r.fields.some(Boolean)?` <span class="hint">(${esc(r.fields.filter(Boolean).join(', '))})</span>`:''}</td>
+        <td>${r.building_id?`<button class="bn" type="button" data-ab="${esc(r.building_id)}">${esc(r.building_name||r.building_id)}</button>`:'<span class="hint">—</span>'}</td></tr>`).join('')}</tbody></table>`:'<p class="hint">기록이 없어요.</p>';
+      body.querySelectorAll('[data-ab]').forEach(x=>x.onclick=()=>{closeModal();openById(x.dataset.ab)});
+    }
+  };
+  const filt=q=>{
+    q=q.gte('at',since().toISOString());
+    q=tab==='login'?q.eq('action','로그인'):q.neq('action','로그인');
+    const u=$m('#auU').value;if(u)q=q.eq('user_id',u);
+    const s=$m('#auQ').value.trim();if(tab==='change'&&s)q=q.ilike('building_name','%'+s.replace(/[\\%_]/g,'\\$&')+'%');
+    return q;
+  };
+  const load=async more=>{
+    if(!more){page=0;rows=[];$m('#auBody').textContent='불러오는 중…'}
+    const [a,b]=await Promise.all([
+      filt(sb.from('logs').select('id,at,user_id,action,building_id,building_name,fields')).order('at',{ascending:false}).range(page*PG,page*PG+PG-1),
+      (!more&&tab==='login')?filt(sb.from('logs').select('user_id,at')).order('at',{ascending:false}).limit(5000):Promise.resolve(null)]);
+    if(a.error){$m('#auBody').textContent='불러오지 못했어요: '+a.error.message;return}
+    if(b&&!b.error)sumRows=b.data||[];
+    rows=rows.concat(a.data||[]);page++;
+    $m('#auMore').classList.toggle('hidden',(a.data||[]).length<PG);
+    draw();
+  };
+  m.querySelectorAll('[data-at]').forEach(b=>b.onclick=()=>{if(tab!==b.dataset.at){tab=b.dataset.at;load(false)}});
+  $m('#auU').onchange=()=>load(false);$m('#auD').onchange=()=>load(false);
+  let qt=null;$m('#auQ').oninput=()=>{clearTimeout(qt);qt=setTimeout(()=>load(false),400)};
+  $m('#auMore').onclick=()=>load(true);
+  $m('#auX').onclick=closeModal;
+  $m('#auCsv').onclick=()=>{
+    const head=tab==='login'?['때','사람']:['때','사람','내용','바뀐 항목','빌딩'];
+    const data=rows.map(r=>tab==='login'?[tm(r.at),who(r.user_id)]:[tm(r.at),who(r.user_id),r.action,(r.fields||[]).filter(Boolean).join(' / '),r.building_name||'']);
+    const cell=x=>{x=String(x??'');if(/^[=+\-@]/.test(x))x="'"+x;return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x};
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+[head,...data].map(r=>r.map(cell).join(',')).join('\n')],{type:'text/csv'}));
+    a.download=`${tab==='login'?'로그인':'변경'}기록_${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  };
+  load(false);
 }
 
 /* ================= 건축물대장(건축HUB) 가져오기 (관리자) ================= */
