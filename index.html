@@ -93,6 +93,10 @@ main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 .lg.on{background:#0E8A94}.lg.off{background:#fff;border-color:#E0662A}
 .lg.bid{border-radius:50%;border-color:#D92D20;background:rgba(217,45,32,.25)}
 .lg.bidend{border-radius:50%;border-color:#98A2B3;background:rgba(152,162,179,.3)}
+.lg.chm{border-radius:50%;border-color:#0A6CFF;background:#1E90FF;box-shadow:0 0 0 0 rgba(30,144,255,.7);animation:chmBlink 1.2s ease-in-out infinite}
+@keyframes chmBlink{0%,100%{box-shadow:0 0 0 0 rgba(30,144,255,.75);opacity:1}50%{box-shadow:0 0 0 5px rgba(30,144,255,0);opacity:.55}}
+.dchip.chm{background:#E6F2FF;color:#0A5BD8;border:1px solid #9CCBFF}
+@media (prefers-reduced-motion:reduce){.lg.chm{animation:none}}
 /* 나라장터 입찰 진행 중인 빌딩: 지도 위 깜빡이는 표시 */
 .bidpin{position:relative;width:18px;height:18px;cursor:pointer;border:0;padding:0;background:none}
 .bidpin i{position:absolute;inset:0;border-radius:50%;background:#D92D20;border:2px solid #fff;box-shadow:0 0 0 1px #D92D20}
@@ -690,6 +694,12 @@ async function ensureFull(b){
   b.__full=true;   // 못 받았어도 매번 다시 조르지 않게
   return b;
 }
+/* CHM 사업장 관리에 등록된 우리 관리 빌딩 (빌딩 id → 사업장 이름) — 지도에서 밝은 파란색으로 깜빡여요 */
+let CHM={};
+async function loadChm(){
+  try{const {data,error}=await sb.rpc('chm_managed_buildings');if(!error&&Array.isArray(data)){CHM={};for(const r of data){if(r.building_id)(CHM[r.building_id]=CHM[r.building_id]||[]).push(r.site_name)}}}catch(_){}
+}
+const isChm=b=>!!(b&&CHM[b.id]);
 let lastLoad=0;
 const rcache=new Map();   // 시도 → {at,rows} — 시도를 오갈 때 다시 받지 않게
 /* 시도 목록·건수. region_counts() 함수가 없으면 빈 배열 → 예전처럼 전국을 한 번에 불러와요. */
@@ -713,7 +723,7 @@ async function loadAll(){
   buildings=bs.data||[];names=Object.fromEntries((ps||[]).map(p=>[p.id,p.name]));people=(ps||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko'));
   for(const b of buildings)if(!b.zone)b.zone=autoZone(b.region,b.district);
   rcache.set(regionF,{at:lastLoad,rows:buildings});
-  await Promise.all([loadFmSug(),loadBids(),loadSales()]);
+  await Promise.all([loadFmSug(),loadBids(),loadSales(),loadChm()]);
   afterLoad();
 }
 function afterLoad(){
@@ -840,6 +850,12 @@ async function initMap(){
     if(THREE_OK)map.addLayer(box3d);
     map.addLayer({id:'bld-circle',type:'circle',source:'bld',maxzoom:BOX_MINZOOM,
       paint:{'circle-radius':['get','r'],'circle-color':['get','fill'],'circle-opacity':['get','op'],'circle-stroke-color':['get','stroke'],'circle-stroke-width':['get','sw']}});
+    // CHM 관리 빌딩: 퍼지는 파란 빛 + 깜빡이는 점 (입체로 바뀌는 배율에서도 보이게 maxzoom 없음)
+    map.addLayer({id:'bld-chm-glow',type:'circle',source:'bld',filter:['==',['get','chm'],1],
+      paint:{'circle-radius':['+',['get','r'],8],'circle-color':'#1E90FF','circle-opacity':.45,'circle-blur':.4,'circle-stroke-width':0}});
+    map.addLayer({id:'bld-chm',type:'circle',source:'bld',filter:['==',['get','chm'],1],
+      paint:{'circle-radius':['get','r'],'circle-color':'#1E90FF','circle-opacity':1,'circle-stroke-color':'#ffffff','circle-stroke-width':2.5}});
+    chmPulse();
     map.addLayer({id:'bld-label',type:'symbol',source:'bld',minzoom:14,
       layout:{'text-field':['get','name'],'text-font':['Noto Sans Regular'],'text-size':13,'text-anchor':'bottom','text-offset':[0,-1.1]},
       paint:{'text-color':'#1B2A2F','text-halo-color':'#ffffff','text-halo-width':2}});
@@ -851,11 +867,11 @@ async function initMap(){
       setPlacing(false);renderEdit();drawTmp();if(isMobile())setMView('list');return;
     }
     if(!mapReady)return;
-    const f=map.queryRenderedFeatures(e.point,{layers:['bld-circle','bld-label'].filter(id=>map.getLayer(id))})[0];
+    const f=map.queryRenderedFeatures(e.point,{layers:['bld-chm','bld-circle','bld-label'].filter(id=>map.getLayer(id))})[0];
     if(f)return openDetail(f.properties.id);
     const hit=hitBox(e.lngLat);if(hit)openDetail(hit.id);
   });
-  for(const id of ['bld-circle','bld-label']){
+  for(const id of ['bld-chm','bld-circle','bld-label']){
     map.on('mouseenter',id,()=>{if(!placing)map.getCanvas().style.cursor='pointer'});
     map.on('mouseleave',id,()=>{if(!placing)map.getCanvas().style.cursor=''});
   }
@@ -863,6 +879,22 @@ async function initMap(){
   addEventListener('keydown',e=>{if(e.key==='Escape'&&placing)setPlacing(false)});
 }
 const rad=g=>Math.max(6,Math.min(22,Math.sqrt((+g||0)/1500)));
+/* CHM 관리 빌딩 깜빡임 — 1.4초 주기로 빛이 퍼지고 점이 밝아졌다 흐려져요 (움직임 줄이기 설정이면 멈춤) */
+let chmT=null;
+function chmPulse(){
+  if(chmT)return;
+  const still=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tick=()=>{
+    if(!mapReady||!map.getLayer('bld-chm'))return;
+    if(!Object.keys(CHM).length||document.hidden)return;
+    const t=(performance.now()%1400)/1400,w=Math.sin(t*Math.PI);                 // 0 → 1 → 0
+    map.setPaintProperty('bld-chm-glow','circle-radius',['+',['get','r'],4+18*t]);
+    map.setPaintProperty('bld-chm-glow','circle-opacity',.75*(1-t));
+    map.setPaintProperty('bld-chm','circle-color',w>.5?'#1E90FF':'#63B3FF');
+  };
+  if(still){map.setPaintProperty('bld-chm-glow','circle-radius',['+',['get','r'],8]);return}
+  chmT=setInterval(tick,60);
+}
 /* 지도 색: '관리사' 기준(기본) 또는 '영업 단계' 기준 */
 const stageOf=b=>sales[b.id]?.stage||'none';
 function markColor(b,pin){
@@ -871,6 +903,7 @@ function markColor(b,pin){
 }
 const hex2int=h=>parseInt(String(h).replace('#',''),16);
 function boxColor(b){   // 입체 빌딩 색 [면, 테두리]
+  if(isChm(b))return [0x1E90FF,0x0A5BD8];   // CHM 관리 빌딩은 항상 밝은 파란색
   if(colorMode==='sales'){const s=sales[b.id]?.stage;return s?[hex2int(SCOL[s]),hex2int(SCOL[s])]:[0xFFFFFF,0x98A2B3]}
   return hasFM(b)?[0x0E8A94,0x0E5E66]:[0xFFFFFF,0xE0662A];
 }
@@ -879,6 +912,7 @@ function renderLegend(){
   el.innerHTML=(colorMode==='sales'
     ?STAGES.map(([k,l,c])=>`<span><i class="lg" style="background:${c};border-color:${c}"></i>${esc(l)}</span>`).join('')+'<span><i class="lg off" style="border-color:#98A2B3"></i>미지정</span>'
     :'<span><i class="lg on"></i>관리사 입력</span><span><i class="lg off"></i>미입력</span>')
+    +(Object.keys(CHM).length?'<span><i class="lg chm"></i>CHM 관리</span>':'')
     +'<span><i class="lg bid"></i>입찰 진행</span><span><i class="lg bidend"></i>입찰 마감</span>'
     +`<button type="button" class="legbtn" id="legSw">색 기준: ${colorMode==='sales'?'영업 단계':'관리사'} ⇄</button>`;
   const sw=$('#legSw');if(sw)sw.onclick=()=>{colorMode=colorMode==='sales'?'fm':'sales';drawMarkers()};
@@ -896,7 +930,7 @@ function drawMarkers(){
     if(!hasPos(b))continue;
     const sel=b.id===selId,fm=hasFM(b),c=markColor(b,pin);
     features.push({type:'Feature',geometry:{type:'Point',coordinates:[b.lng,b.lat]},
-      properties:{id:b.id,name:b.name,r:rad(b.gfa),fill:sel?hi:c[0],stroke:sel?'#1B2A2F':c[1],sw:sel?3:2,op:sel?1:(fm?.8:.9)}});
+      properties:{id:b.id,name:b.name,r:rad(b.gfa),fill:sel?hi:c[0],stroke:sel?'#1B2A2F':c[1],sw:sel?3:2,op:sel?1:(fm?.8:.9),chm:isChm(b)?1:0}});
   }
   map.getSource('bld').setData({type:'FeatureCollection',features});
   renderLegend();syncBoxes();drawTmp();drawBidPins();
@@ -968,7 +1002,7 @@ function syncBoxes(){
   const bb=map.getBounds(),pad=.004,inView=b=>b.lng>bb.getWest()-pad&&b.lng<bb.getEast()+pad&&b.lat>bb.getSouth()-pad&&b.lat<bb.getNorth()+pad;
   for(const b of visible()){
     if(!hasPos(b)||!inView(b))continue;want.add(b.id);
-    const m=box(b);const key=[m.w,m.d,m.h,m.az,m.floors,b.lat,b.lng,b.id===selId,hasFM(b),colorMode,stageOf(b),...FACES.map(([k])=>faceState(m,k))].join('|');
+    const m=box(b);const key=[m.w,m.d,m.h,m.az,m.floors,b.lat,b.lng,b.id===selId,hasFM(b),isChm(b),colorMode,stageOf(b),...FACES.map(([k])=>faceState(m,k))].join('|');
     const o=boxes.get(b.id);if(o&&o.key===key)continue;
     if(o)disposeScene(o.scene);
     boxes.set(b.id,buildBox(b,m,key));
@@ -1211,7 +1245,7 @@ async function renderDetail(){
       <dt>용도</dt><dd>${esc(b.use_type||'—')}</dd><dt>규모</dt><dd>${esc(fl||'—')}</dd>
       <dt>준공</dt><dd>${esc(b.completed||'—')}</dd><dt>소유주</dt><dd>${esc(b.owner||'—')}</dd></dl>
       ${b.memo?`<div class="note"><b>메모</b>\n${esc(b.memo)}</div>`:''}`,
-      b.verified?'<span class="dchip ok">확인 완료</span>':''],
+      (isChm(b)?`<span class="dchip chm" title="CHM 사업장 관리: ${esc(CHM[b.id].join(', '))}">CHM 관리 · ${esc(CHM[b.id].join(', '))}</span> `:'')+(b.verified?'<span class="dchip ok">확인 완료</span>':'')],
     ['fm','시설관리',`<dl><dt>시설(FM)</dt><dd>${b.fm?.company?esc(b.fm.company):'<span class="flag">미입력</span>'}</dd>
       ${CATS.filter(([k])=>b.staff?.[k]?.company).map(([k,l])=>`<dt>${l}</dt><dd>${esc(b.staff[k].company)}${b.staff[k].source?' · '+srcLink(b.staff[k].source):''}</dd>`).join('')}
       ${b.fm?.pm?`<dt>PM</dt><dd>${esc(b.fm.pm)}</dd>`:''}
