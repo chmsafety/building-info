@@ -96,7 +96,10 @@ main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 .lg.chm{border-radius:50%;border-color:#0A6CFF;background:#1E90FF;box-shadow:0 0 0 0 rgba(30,144,255,.7);animation:chmBlink 1.2s ease-in-out infinite}
 @keyframes chmBlink{0%,100%{box-shadow:0 0 0 0 rgba(30,144,255,.75);opacity:1}50%{box-shadow:0 0 0 5px rgba(30,144,255,0);opacity:.55}}
 .dchip.chm{background:#E6F2FF;color:#0A5BD8;border:1px solid #9CCBFF}
-@media (prefers-reduced-motion:reduce){.lg.chm{animation:none}}
+.lg.chms{border-radius:50%;border-color:#D7261E;background:#FF3B30;animation:chmsBlink 1.2s ease-in-out infinite}
+@keyframes chmsBlink{0%,100%{box-shadow:0 0 0 0 rgba(255,59,48,.75);opacity:1}50%{box-shadow:0 0 0 5px rgba(255,59,48,0);opacity:.55}}
+.dchip.chms{background:#FFECEB;color:#C4211A;border:1px solid #FFB3AE}
+@media (prefers-reduced-motion:reduce){.lg.chm,.lg.chms{animation:none}}
 /* 나라장터 입찰 진행 중인 빌딩: 지도 위 깜빡이는 표시 */
 .bidpin{position:relative;width:18px;height:18px;cursor:pointer;border:0;padding:0;background:none}
 .bidpin i{position:absolute;inset:0;border-radius:50%;background:#D92D20;border:2px solid #fff;box-shadow:0 0 0 1px #D92D20}
@@ -697,9 +700,12 @@ async function ensureFull(b){
 /* CHM 사업장 관리에 등록된 우리 관리 빌딩 (빌딩 id → 사업장 이름) — 지도에서 밝은 파란색으로 깜빡여요 */
 let CHM={};
 async function loadChm(){
-  try{const {data,error}=await sb.rpc('chm_managed_buildings');if(!error&&Array.isArray(data)){CHM={};for(const r of data){if(r.building_id)(CHM[r.building_id]=CHM[r.building_id]||[]).push(r.site_name)}}}catch(_){}
+  try{const {data,error}=await sb.rpc('chm_managed_buildings');if(!error&&Array.isArray(data)){CHM={};for(const r of data){if(!r.building_id)continue;const o=CHM[r.building_id]||(CHM[r.building_id]={CHM:[],CHMS:[]});(o[r.company==='CHMS'?'CHMS':'CHM']).push(r.site_name)}}}catch(_){}
 }
 const isChm=b=>!!(b&&CHM[b.id]);
+// 1 = CHM(파란색), 2 = CHMS(빨간색), 3 = 두 회사 모두(파랑·빨강 번갈아)
+const chmKind=b=>{const o=b&&CHM[b.id];if(!o)return 0;return (o.CHM.length?1:0)+(o.CHMS.length?2:0)};
+const KCOL={1:[0x1E90FF,0x0A5BD8,0x7FBFFF,0x4DA6FF],2:[0xFF3B30,0xC4211A,0xFF9A94,0xFF6B63],3:[0x8E5CFF,0x5B2BD8,0xC4A8FF,0xA27BFF]};
 let lastLoad=0;
 const rcache=new Map();   // 시도 → {at,rows} — 시도를 오갈 때 다시 받지 않게
 /* 시도 목록·건수. region_counts() 함수가 없으면 빈 배열 → 예전처럼 전국을 한 번에 불러와요. */
@@ -851,10 +857,10 @@ async function initMap(){
     map.addLayer({id:'bld-circle',type:'circle',source:'bld',maxzoom:BOX_MINZOOM,
       paint:{'circle-radius':['get','r'],'circle-color':['get','fill'],'circle-opacity':['get','op'],'circle-stroke-color':['get','stroke'],'circle-stroke-width':['get','sw']}});
     // CHM 관리 빌딩: 퍼지는 파란 빛 + 깜빡이는 점 (입체로 바뀌는 배율에서도 보이게 maxzoom 없음)
-    map.addLayer({id:'bld-chm-glow',type:'circle',source:'bld',filter:['==',['get','chm'],1],
-      paint:{'circle-radius':['+',['get','r'],8],'circle-color':'#1E90FF','circle-opacity':.45,'circle-blur':.4,'circle-stroke-width':0}});
-    map.addLayer({id:'bld-chm',type:'circle',source:'bld',filter:['==',['get','chm'],1],
-      paint:{'circle-radius':['get','r'],'circle-color':'#1E90FF','circle-opacity':1,'circle-stroke-color':'#ffffff','circle-stroke-width':2.5}});
+    map.addLayer({id:'bld-chm-glow',type:'circle',source:'bld',filter:['>',['get','chm'],0],
+      paint:{'circle-radius':['+',['get','r'],8],'circle-color':['match',['get','chm'],2,'#FF3B30','#1E90FF'],'circle-opacity':.45,'circle-blur':.4,'circle-stroke-width':0}});
+    map.addLayer({id:'bld-chm',type:'circle',source:'bld',filter:['>',['get','chm'],0],
+      paint:{'circle-radius':['get','r'],'circle-color':['match',['get','chm'],2,'#FF3B30','#1E90FF'],'circle-opacity':1,'circle-stroke-color':'#ffffff','circle-stroke-width':2.5}});
     chmPulse();
     map.addLayer({id:'bld-label',type:'symbol',source:'bld',minzoom:14,
       layout:{'text-field':['get','name'],'text-font':['Noto Sans Regular'],'text-size':13,'text-anchor':'bottom','text-offset':[0,-1.1]},
@@ -890,7 +896,9 @@ function chmPulse(){
     const t=(performance.now()%1400)/1400,w=Math.sin(t*Math.PI);                 // 0 → 1 → 0
     map.setPaintProperty('bld-chm-glow','circle-radius',['+',['get','r'],4+18*t]);
     map.setPaintProperty('bld-chm-glow','circle-opacity',.75*(1-t));
-    map.setPaintProperty('bld-chm','circle-color',w>.5?'#1E90FF':'#63B3FF');
+    const on=w>.5;
+    map.setPaintProperty('bld-chm','circle-color',['match',['get','chm'],2,on?'#FF3B30':'#FF9A94',3,on?'#1E90FF':'#FF3B30',on?'#1E90FF':'#63B3FF']);
+    map.setPaintProperty('bld-chm-glow','circle-color',['match',['get','chm'],2,'#FF3B30',3,on?'#1E90FF':'#FF3B30','#1E90FF']);
     if(map.getZoom()>=BOX_MINZOOM-0.6){for(const o of boxes.values())if(o.chm){map.triggerRepaint();break}}
   };
   if(still){map.setPaintProperty('bld-chm-glow','circle-radius',['+',['get','r'],8]);return}
@@ -904,7 +912,7 @@ function markColor(b,pin){
 }
 const hex2int=h=>parseInt(String(h).replace('#',''),16);
 function boxColor(b){   // 입체 빌딩 색 [면, 테두리]
-  if(isChm(b))return [0x1E90FF,0x0A5BD8];   // CHM 관리 빌딩은 항상 밝은 파란색
+  if(isChm(b)){const k=KCOL[chmKind(b)];return [k[0],k[1]]}   // 우리 관리 빌딩: CHM 파랑 · CHMS 빨강
   if(colorMode==='sales'){const s=sales[b.id]?.stage;return s?[hex2int(SCOL[s]),hex2int(SCOL[s])]:[0xFFFFFF,0x98A2B3]}
   return hasFM(b)?[0x0E8A94,0x0E5E66]:[0xFFFFFF,0xE0662A];
 }
@@ -913,7 +921,8 @@ function renderLegend(){
   el.innerHTML=(colorMode==='sales'
     ?STAGES.map(([k,l,c])=>`<span><i class="lg" style="background:${c};border-color:${c}"></i>${esc(l)}</span>`).join('')+'<span><i class="lg off" style="border-color:#98A2B3"></i>미지정</span>'
     :'<span><i class="lg on"></i>관리사 입력</span><span><i class="lg off"></i>미입력</span>')
-    +(Object.keys(CHM).length?'<span><i class="lg chm"></i>CHM 관리</span>':'')
+    +(Object.values(CHM).some(o=>o.CHM.length)?'<span><i class="lg chm"></i>CHM 관리</span>':'')
+    +(Object.values(CHM).some(o=>o.CHMS.length)?'<span><i class="lg chms"></i>CHMS 관리</span>':'')
     +'<span><i class="lg bid"></i>입찰 진행</span><span><i class="lg bidend"></i>입찰 마감</span>'
     +`<button type="button" class="legbtn" id="legSw">색 기준: ${colorMode==='sales'?'영업 단계':'관리사'} ⇄</button>`;
   const sw=$('#legSw');if(sw)sw.onclick=()=>{colorMode=colorMode==='sales'?'fm':'sales';drawMarkers()};
@@ -931,7 +940,7 @@ function drawMarkers(){
     if(!hasPos(b))continue;
     const sel=b.id===selId,fm=hasFM(b),c=markColor(b,pin);
     features.push({type:'Feature',geometry:{type:'Point',coordinates:[b.lng,b.lat]},
-      properties:{id:b.id,name:b.name,r:rad(b.gfa),fill:sel?hi:c[0],stroke:sel?'#1B2A2F':c[1],sw:sel?3:2,op:sel?1:(fm?.8:.9),chm:isChm(b)?1:0}});
+      properties:{id:b.id,name:b.name,r:rad(b.gfa),fill:sel?hi:c[0],stroke:sel?'#1B2A2F':c[1],sw:sel?3:2,op:sel?1:(fm?.8:.9),chm:chmKind(b)}});
   }
   map.getSource('bld').setData({type:'FeatureCollection',features});
   renderLegend();syncBoxes();drawTmp();drawBidPins();
@@ -1003,7 +1012,7 @@ function syncBoxes(){
   const bb=map.getBounds(),pad=.004,inView=b=>b.lng>bb.getWest()-pad&&b.lng<bb.getEast()+pad&&b.lat>bb.getSouth()-pad&&b.lat<bb.getNorth()+pad;
   for(const b of visible()){
     if(!hasPos(b)||!inView(b))continue;want.add(b.id);
-    const m=box(b);const key=[m.w,m.d,m.h,m.az,m.floors,b.lat,b.lng,b.id===selId,hasFM(b),isChm(b),colorMode,stageOf(b),...FACES.map(([k])=>faceState(m,k))].join('|');
+    const m=box(b);const key=[m.w,m.d,m.h,m.az,m.floors,b.lat,b.lng,b.id===selId,hasFM(b),chmKind(b),colorMode,stageOf(b),...FACES.map(([k])=>faceState(m,k))].join('|');
     const o=boxes.get(b.id);if(o&&o.key===key)continue;
     if(o)disposeScene(o.scene);
     boxes.set(b.id,buildBox(b,m,key));
@@ -1023,7 +1032,7 @@ function buildBox(b,m,key){
     if(p)return new THREE.MeshBasicMaterial({map:facadeTex.get(p)});
     const width=(k==='front'||k==='back')?m.w:m.d,bays=Math.max(1,Math.round(width/3.2));
     for(let v=gi*4;v<gi*4+4;v++)uv.setXY(v,uv.getX(v)*bays,uv.getY(v)*m.floors);
-    return new THREE.MeshBasicMaterial({map:getGeneric(),color:isChm(b)?0x7FBFFF:(colorMode==='sales'?0xFFFFFF:(fm?0x86CFD5:0xFFFFFF))});
+    return new THREE.MeshBasicMaterial({map:getGeneric(),color:isChm(b)?KCOL[chmKind(b)][2]:(colorMode==='sales'?0xFFFFFF:(fm?0x86CFD5:0xFFFFFF))});
   });
   uv.needsUpdate=true;
   const sel=b.id===selId;
@@ -1036,27 +1045,31 @@ function buildBox(b,m,key){
   // CHM 관리 빌딩: 건물 전체를 감싸는 파란 빛 껍데기 + 굵은 파란 테두리 — render()에서 깜빡임
   let chm=null;
   if(isChm(b)){
+    const kind=chmKind(b),kc=KCOL[kind===2?2:1][0];
     const sg=new THREE.BoxGeometry(m.w+5,m.h+4,m.d+5);
-    const shell=new THREE.Mesh(sg,new THREE.MeshBasicMaterial({color:0x1E90FF,transparent:true,opacity:.3,depthWrite:false}));shell.position.y=(m.h+4)/2;
-    const sEdge=new THREE.LineSegments(new THREE.EdgesGeometry(sg),new THREE.LineBasicMaterial({color:0x1E90FF,transparent:true,opacity:1}));sEdge.position.y=(m.h+4)/2;
-    const halo=new THREE.Mesh(new THREE.PlaneGeometry(m.w+24,m.d+24),new THREE.MeshBasicMaterial({color:0x1E90FF,transparent:true,opacity:.5,side:THREE.DoubleSide,depthWrite:false}));
+    const shell=new THREE.Mesh(sg,new THREE.MeshBasicMaterial({color:kc,transparent:true,opacity:.3,depthWrite:false}));shell.position.y=(m.h+4)/2;
+    const sEdge=new THREE.LineSegments(new THREE.EdgesGeometry(sg),new THREE.LineBasicMaterial({color:kc,transparent:true,opacity:1}));sEdge.position.y=(m.h+4)/2;
+    const halo=new THREE.Mesh(new THREE.PlaneGeometry(m.w+24,m.d+24),new THREE.MeshBasicMaterial({color:kc,transparent:true,opacity:.5,side:THREE.DoubleSide,depthWrite:false}));
     halo.rotation.x=-Math.PI/2;halo.position.y=.4;
     grp.add(halo);grp.add(shell);grp.add(sEdge);
-    chm={shell,sEdge,halo,mats:mats.filter(x=>x.map&&x.map===genericTex)};
+    chm={kind,shell,sEdge,halo,mats:mats.filter(x=>x.map&&x.map===genericTex)};
   }
   const scene=new THREE.Scene();scene.add(grp);
   const mc=maplibregl.MercatorCoordinate.fromLngLat([b.lng,b.lat],0);const s=mc.meterInMercatorCoordinateUnits();
   const matrix=new THREE.Matrix4().makeTranslation(mc.x,mc.y,mc.z).scale(new THREE.Vector3(s,-s,s)).multiply(rotX);
   return {key,scene,matrix,chm};
 }
-/* CHM 관리 빌딩 입체 깜빡임: 1.4초 주기로 파란 빛이 밝아졌다 흐려져요 */
-const CHM_ON=THREE_OK?new THREE.Color(0x4DA6FF):null,CHM_OFF=THREE_OK?new THREE.Color(0xFFFFFF):null;
+/* 우리 관리 빌딩 입체 깜빡임: 1.4초 주기로 CHM 파랑 · CHMS 빨강 빛이 밝아졌다 흐려져요 (두 회사 모두면 파랑↔빨강) */
+const tc=h=>THREE_OK?new THREE.Color(h):null;
+const CHM_OFF=tc(0xFFFFFF),CHM_ON={1:tc(0x4DA6FF),2:tc(0xFF6B63)},CHM_EDGE={1:tc(0x1E90FF),2:tc(0xFF3B30)};
 function chmAnimate(){
   const still=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   const w=still?1:(Math.sin(performance.now()/1400*Math.PI*2)+1)/2;   // 0 ~ 1
   for(const o of boxes.values()){const c=o.chm;if(!c)continue;
     c.shell.material.opacity=.08+.42*w;c.sEdge.material.opacity=.35+.65*w;c.halo.material.opacity=.15+.55*w;
-    for(const mt of c.mats)mt.color.copy(CHM_OFF).lerp(CHM_ON,w);}
+    const k=c.kind===3?(w>.5?1:2):c.kind;
+    c.shell.material.color.copy(CHM_EDGE[k]);c.sEdge.material.color.copy(CHM_EDGE[k]);c.halo.material.color.copy(CHM_EDGE[k]);
+    for(const mt of c.mats)mt.color.copy(CHM_OFF).lerp(CHM_ON[k],c.kind===3?1:w);}
 }
 async function loadFacadesInView(){
   if(!THREE_OK||!mapReady||!me||map.getZoom()<BOX_MINZOOM-0.5)return;
@@ -1266,7 +1279,7 @@ async function renderDetail(){
       <dt>용도</dt><dd>${esc(b.use_type||'—')}</dd><dt>규모</dt><dd>${esc(fl||'—')}</dd>
       <dt>준공</dt><dd>${esc(b.completed||'—')}</dd><dt>소유주</dt><dd>${esc(b.owner||'—')}</dd></dl>
       ${b.memo?`<div class="note"><b>메모</b>\n${esc(b.memo)}</div>`:''}`,
-      (isChm(b)?`<span class="dchip chm" title="CHM 사업장 관리: ${esc(CHM[b.id].join(', '))}">CHM 관리 · ${esc(CHM[b.id].join(', '))}</span> `:'')+(b.verified?'<span class="dchip ok">확인 완료</span>':'')],
+      (isChm(b)?['CHM','CHMS'].filter(k=>CHM[b.id][k].length).map(k=>`<span class="dchip ${k.toLowerCase()}" title="${k} 사업장 관리: ${esc(CHM[b.id][k].join(', '))}">${k} 관리 · ${esc(CHM[b.id][k].join(', '))}</span> `).join(''):'')+(b.verified?'<span class="dchip ok">확인 완료</span>':'')],
     ['fm','시설관리',`<dl><dt>시설(FM)</dt><dd>${b.fm?.company?esc(b.fm.company):'<span class="flag">미입력</span>'}</dd>
       ${CATS.filter(([k])=>b.staff?.[k]?.company).map(([k,l])=>`<dt>${l}</dt><dd>${esc(b.staff[k].company)}${b.staff[k].source?' · '+srcLink(b.staff[k].source):''}</dd>`).join('')}
       ${b.fm?.pm?`<dt>PM</dt><dd>${esc(b.fm.pm)}</dd>`:''}
