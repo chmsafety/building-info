@@ -93,11 +93,11 @@ main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 .lg.on{background:#0E8A94}.lg.off{background:#fff;border-color:#E0662A}
 .lg.bid{border-radius:50%;border-color:#D92D20;background:rgba(217,45,32,.25)}
 .lg.bidend{border-radius:50%;border-color:#98A2B3;background:rgba(152,162,179,.3)}
-.lg.chm{border-radius:50%;border-color:#0A6CFF;background:#1E90FF;box-shadow:0 0 0 0 rgba(30,144,255,.7);animation:chmBlink 1.2s ease-in-out infinite}
-@keyframes chmBlink{0%,100%{box-shadow:0 0 0 0 rgba(30,144,255,.75);opacity:1}50%{box-shadow:0 0 0 5px rgba(30,144,255,0);opacity:.55}}
+.lg.chm{border-radius:50%;border-color:#3D8FF0;background:#5AAEFF;box-shadow:0 0 0 0 rgba(90,174,255,.5);animation:chmBlink 1.2s ease-in-out infinite}
+@keyframes chmBlink{0%,100%{box-shadow:0 0 0 0 rgba(90,174,255,.5);opacity:.9}50%{box-shadow:0 0 0 5px rgba(90,174,255,0);opacity:.6}}
 .dchip.chm{background:#E6F2FF;color:#0A5BD8;border:1px solid #9CCBFF}
-.lg.chms{border-radius:50%;border-color:#D7261E;background:#FF3B30;animation:chmsBlink 1.2s ease-in-out infinite}
-@keyframes chmsBlink{0%,100%{box-shadow:0 0 0 0 rgba(255,59,48,.75);opacity:1}50%{box-shadow:0 0 0 5px rgba(255,59,48,0);opacity:.55}}
+.lg.chms{border-radius:50%;border-color:#E8574F;background:#FF7A72;animation:chmsBlink 1.2s ease-in-out infinite}
+@keyframes chmsBlink{0%,100%{box-shadow:0 0 0 0 rgba(255,122,114,.5);opacity:.9}50%{box-shadow:0 0 0 5px rgba(255,122,114,0);opacity:.6}}
 .dchip.chms{background:#FFECEB;color:#C4211A;border:1px solid #FFB3AE}
 @media (prefers-reduced-motion:reduce){.lg.chm,.lg.chms{animation:none}}
 /* 나라장터 입찰 진행 중인 빌딩: 지도 위 깜빡이는 표시 */
@@ -705,7 +705,7 @@ async function loadChm(){
 const isChm=b=>!!(b&&CHM[b.id]);
 // 1 = CHM(파란색), 2 = CHMS(빨간색), 3 = 두 회사 모두(파랑·빨강 번갈아)
 const chmKind=b=>{const o=b&&CHM[b.id];if(!o)return 0;return (o.CHM.length?1:0)+(o.CHMS.length?2:0)};
-const KCOL={1:[0x1E90FF,0x0A5BD8,0x7FBFFF,0x4DA6FF],2:[0xFF3B30,0xC4211A,0xFF9A94,0xFF6B63],3:[0x8E5CFF,0x5B2BD8,0xC4A8FF,0xA27BFF]};
+const KCOL={1:[0x5AAEFF,0x3D8FF0,0xA9D3FF,0x86C1FF],2:[0xFF7A72,0xE8574F,0xFFBDB8,0xFF9E98],3:[0xA98AFF,0x7A55E8,0xD6C6FF,0xBCA3FF]};
 let lastLoad=0;
 const rcache=new Map();   // 시도 → {at,rows} — 시도를 오갈 때 다시 받지 않게
 /* 시도 목록·건수. region_counts() 함수가 없으면 빈 배열 → 예전처럼 전국을 한 번에 불러와요. */
@@ -858,9 +858,9 @@ async function initMap(){
       paint:{'circle-radius':['get','r'],'circle-color':['get','fill'],'circle-opacity':['get','op'],'circle-stroke-color':['get','stroke'],'circle-stroke-width':['get','sw']}});
     // CHM 관리 빌딩: 퍼지는 파란 빛 + 깜빡이는 점 (입체로 바뀌는 배율에서도 보이게 maxzoom 없음)
     map.addLayer({id:'bld-chm-glow',type:'circle',source:'bld',filter:['>',['get','chm'],0],
-      paint:{'circle-radius':['+',['get','r'],8],'circle-color':['match',['get','chm'],2,'#FF3B30','#1E90FF'],'circle-opacity':.45,'circle-blur':.4,'circle-stroke-width':0}});
+      paint:{'circle-radius':['+',['get','r'],8],'circle-color':['match',['get','chm'],2,'#FF7A72','#5AAEFF'],'circle-opacity':.3,'circle-blur':.4,'circle-stroke-width':0}});
     map.addLayer({id:'bld-chm',type:'circle',source:'bld',filter:['>',['get','chm'],0],
-      paint:{'circle-radius':['get','r'],'circle-color':['match',['get','chm'],2,'#FF3B30','#1E90FF'],'circle-opacity':1,'circle-stroke-color':'#ffffff','circle-stroke-width':2.5}});
+      paint:{'circle-radius':['get','r'],'circle-color':['match',['get','chm'],2,'#FF7A72','#5AAEFF'],'circle-opacity':.9,'circle-stroke-color':'#ffffff','circle-stroke-width':2.5}});
     chmPulse();
     map.addLayer({id:'bld-label',type:'symbol',source:'bld',minzoom:14,
       layout:{'text-field':['get','name'],'text-font':['Noto Sans Regular'],'text-size':13,'text-anchor':'bottom','text-offset':[0,-1.1]},
@@ -895,10 +895,10 @@ function chmPulse(){
     if(!Object.keys(CHM).length||document.hidden)return;
     const t=(performance.now()%1400)/1400,w=Math.sin(t*Math.PI);                 // 0 → 1 → 0
     map.setPaintProperty('bld-chm-glow','circle-radius',['+',['get','r'],4+18*t]);
-    map.setPaintProperty('bld-chm-glow','circle-opacity',.75*(1-t));
+    map.setPaintProperty('bld-chm-glow','circle-opacity',.45*(1-t));
     const on=w>.5;
-    map.setPaintProperty('bld-chm','circle-color',['match',['get','chm'],2,on?'#FF3B30':'#FF9A94',3,on?'#1E90FF':'#FF3B30',on?'#1E90FF':'#63B3FF']);
-    map.setPaintProperty('bld-chm-glow','circle-color',['match',['get','chm'],2,'#FF3B30',3,on?'#1E90FF':'#FF3B30','#1E90FF']);
+    map.setPaintProperty('bld-chm','circle-color',['match',['get','chm'],2,on?'#FF7A72':'#FFB3AE',3,on?'#5AAEFF':'#FF7A72',on?'#5AAEFF':'#9CCBFF']);
+    map.setPaintProperty('bld-chm-glow','circle-color',['match',['get','chm'],2,'#FF7A72',3,on?'#5AAEFF':'#FF7A72','#5AAEFF']);
     if(map.getZoom()>=BOX_MINZOOM-0.6){for(const o of boxes.values())if(o.chm){map.triggerRepaint();break}}
   };
   if(still){map.setPaintProperty('bld-chm-glow','circle-radius',['+',['get','r'],8]);return}
@@ -1061,12 +1061,12 @@ function buildBox(b,m,key){
 }
 /* 우리 관리 빌딩 입체 깜빡임: 1.4초 주기로 CHM 파랑 · CHMS 빨강 빛이 밝아졌다 흐려져요 (두 회사 모두면 파랑↔빨강) */
 const tc=h=>THREE_OK?new THREE.Color(h):null;
-const CHM_OFF=tc(0xFFFFFF),CHM_ON={1:tc(0x4DA6FF),2:tc(0xFF6B63)},CHM_EDGE={1:tc(0x1E90FF),2:tc(0xFF3B30)};
+const CHM_OFF=tc(0xFFFFFF),CHM_ON={1:tc(0x9CCBFF),2:tc(0xFFADA8)},CHM_EDGE={1:tc(0x5AAEFF),2:tc(0xFF7A72)};
 function chmAnimate(){
   const still=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   const w=still?1:(Math.sin(performance.now()/1400*Math.PI*2)+1)/2;   // 0 ~ 1
   for(const o of boxes.values()){const c=o.chm;if(!c)continue;
-    c.shell.material.opacity=.08+.42*w;c.sEdge.material.opacity=.35+.65*w;c.halo.material.opacity=.15+.55*w;
+    c.shell.material.opacity=.05+.25*w;c.sEdge.material.opacity=.3+.45*w;c.halo.material.opacity=.1+.3*w;
     const k=c.kind===3?(w>.5?1:2):c.kind;
     c.shell.material.color.copy(CHM_EDGE[k]);c.sEdge.material.color.copy(CHM_EDGE[k]);c.halo.material.color.copy(CHM_EDGE[k]);
     for(const mt of c.mats)mt.color.copy(CHM_OFF).lerp(CHM_ON[k],c.kind===3?1:w);}
