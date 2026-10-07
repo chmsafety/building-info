@@ -849,8 +849,21 @@ async function loadStyle(){
 }
 async function initMap(){
   const style=await loadStyle();
-  map=new maplibregl.Map({container:'map',style,center:[126.99,37.55],zoom:11,pitch:45,maxPitch:70,minZoom:8,maxZoom:19});
+  map=new maplibregl.Map({container:'map',style,center:[126.99,37.55],zoom:11,pitch:45,maxPitch:70,minZoom:8,maxZoom:19,
+    locale:{'NavigationControl.ZoomIn':'확대','NavigationControl.ZoomOut':'축소','NavigationControl.ResetBearing':'북쪽 위로',
+      'GeolocateControl.FindMyLocation':'내 위치 보기','GeolocateControl.LocationNotAvailable':'위치를 쓸 수 없어요'}});
   map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
+  /* 내 위치: 오른쪽 위 버튼 — 누르면 현재 위치로 이동하고 걸어가면 따라가요. 지도를 끌면 따라가기만 멈추고, 다시 누르면 꺼져요. */
+  if('geolocation' in navigator){
+    const geo=new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:true,timeout:15000,maximumAge:30000},
+      trackUserLocation:true,showUserLocation:true,showAccuracyCircle:true,fitBoundsOptions:{maxZoom:16,duration:800}});
+    map.addControl(geo,'top-right');
+    // 위치 권한을 이미 거절한 기기는 버튼이 회색으로 잠겨요 — 누르면 이유를 알려 줘요
+    const gb=map.getContainer().querySelector('.maplibregl-ctrl-geolocate');
+    if(gb)gb.parentElement.addEventListener('pointerup',()=>{if(gb.disabled)toast(isSecureContext?'위치 권한이 꺼져 있어요. 브라우저(휴대폰은 설정 › 브라우저 앱)에서 이 사이트의 위치 접근을 허용한 뒤 새로 고침 해 주세요.':'보안 연결(https)에서만 현재 위치를 쓸 수 있어요.')});
+    geo.on('error',e=>toast(e&&e.code===1?'위치 권한이 꺼져 있어요. 브라우저(휴대폰은 설정 › 브라우저 앱)에서 이 사이트의 위치 접근을 허용해 주세요.'
+      :e&&e.code===3?'현재 위치를 찾는 데 시간이 걸려요. 잠시 뒤 다시 눌러 주세요.':'현재 위치를 찾지 못했어요. 위치 서비스(GPS)가 켜져 있는지 확인해 주세요.'));
+  }
   map.on('load',()=>{
     map.addSource('bld',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
     if(THREE_OK)map.addLayer(box3d);
