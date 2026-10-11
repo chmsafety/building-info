@@ -101,7 +101,7 @@ main{display:grid;grid-template-columns:1fr 440px;min-height:0}
 .dchip.chms{background:#FFECEB;color:#C4211A;border:1px solid #FFB3AE}
 @media (prefers-reduced-motion:reduce){.lg.chm,.lg.chms{animation:none}}
 /* 나라장터 입찰 진행 중인 빌딩: 지도 위 깜빡이는 표시 */
-.bidpin{position:relative;width:18px;height:18px;cursor:pointer;border:0;padding:0;background:none}
+.bidpin{position:absolute;top:0;left:0;width:18px;height:18px;cursor:pointer;border:0;padding:0;background:none}
 .bidpin i{position:absolute;inset:0;border-radius:50%;background:#D92D20;border:2px solid #fff;box-shadow:0 0 0 1px #D92D20}
 .bidpin::before,.bidpin::after{content:"";position:absolute;inset:-2px;border-radius:50%;border:3px solid #D92D20;animation:bidping 1.6s ease-out infinite;pointer-events:none}
 .bidpin::after{animation-delay:.8s}
