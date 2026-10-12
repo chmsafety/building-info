@@ -563,6 +563,7 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 let sb=null, me=null, buildings=[], names={}, zone='all', regionF='ALL', query='', onlyMissing=false;   // zone=세부(권역 또는 'd:시군구'), regionF=시도
 let minPy=0;   // 연면적 필터 (평): 0=전체
 let pubF='all';   // 구분 필터: all / pub(공공) / priv(민간)
+let typeF='all';   // 건축물 유형 필터: all / office(업무) / bc(방송통신) / lodge(숙박) / etc(기타) — 2026-10-13
 let fmSug=[], fmRun=null;   // 관리사 자동 검색: 검토 대기 목록, 마지막 실행
 let bidLinks=[], bidRun=null, bidOnly=false, bidAny=false, bidTab='open';   // 나라장터 입찰: 빌딩과 연결된 공고, 마지막 확인
 let sales={}, salesOK=true, people=[], stageF='all', colorMode='fm', myOnly=false;   // 영업 파이프라인
@@ -775,15 +776,27 @@ const LIST_MAX=400;   // 목록에 한 번에 그리는 줄 수 — 넘으면 '�
 let listMore=0;
 const sizeOk=b=>!minPy||(+b.gfa||0)>=minPy*PY;
 const pubOk=b=>pubF==='all'||(pubF==='pub'?!!b.is_public:!b.is_public);
+/* 건축물 유형 — 용도(use_type) 글자로 나눠요. 앞에 나온 용도가 우선(예: '복합(업무·호텔·판매)' → 업무시설) */
+const TYPES=[['office','업무시설'],['bc','방송통신시설'],['lodge','숙박시설'],['etc','기타']];
+function typeOf(b){
+  const u=String(b.use_type||'').trim();
+  if(/^방송통신/.test(u))return 'bc';
+  if(/^(숙박|호텔|관광호텔|일반숙박)/.test(u))return 'lodge';
+  if(/업무/.test(u))return 'office';
+  if(/방송통신/.test(u))return 'bc';
+  if(/숙박|호텔/.test(u))return 'lodge';
+  return 'etc';
+}
+const typeOk=b=>typeF==='all'||typeOf(b)===typeF;
 function inZone(b){
   if(regionF!=='ALL'&&b.region!==regionF)return false;
   if(zone==='none'){if(b.zone)return false}
   else if(zone!=='all'){if(isDist(zone)?(b.district||'')!==zone.slice(2):b.zone!==zone)return false}
-  return sizeOk(b)&&pubOk(b);
+  return sizeOk(b)&&pubOk(b)&&typeOk(b);
 }
 /* 지금 시도 안의 세부 구분 — 서울·경기·인천은 권역, 그 밖의 시도는 시군구, 전국이면 권역만 */
 function subList(){
-  const list=buildings.filter(b=>(regionF==='ALL'||b.region===regionF)&&sizeOk(b)&&pubOk(b));
+  const list=buildings.filter(b=>(regionF==='ALL'||b.region===regionF)&&sizeOk(b)&&pubOk(b)&&typeOk(b));
   if(regionF==='ALL'||SUB_FIXED[regionF]){
     const ids=regionF==='ALL'?ZORDER.filter(id=>list.some(b=>b.zone===id)):SUB_FIXED[regionF];
     const out=ids.map(id=>({id,name:ZNAME[id],n:list.filter(b=>b.zone===id).length}));
@@ -797,9 +810,11 @@ function subList(){
 function renderZones(){
   // 한 막대에 정리: 시도는 드롭다운, 권역(시군구)은 칩, 연면적·구분은 세그먼트 — 모바일은 시트로 세로 정렬
   const sd=sidoList(),subs=subList();
-  const inR=buildings.filter(b=>(regionF==='ALL'||b.region===regionF)&&sizeOk(b)&&pubOk(b));
+  const inR0=buildings.filter(b=>(regionF==='ALL'||b.region===regionF)&&sizeOk(b)&&pubOk(b));   // 유형 건수 셀 때 (유형 조건 빼고)
+  const inR=inR0.filter(typeOk);
+  const tCnt={};for(const b of inR0){const t=typeOf(b);tCnt[t]=(tCnt[t]||0)+1}
   const subLbl=regionF!=='ALL'&&!SUB_FIXED[regionF]?'시군구':'권역';
-  const dirty=zone!=='all'||!!minPy||pubF!=='all';
+  const dirty=zone!=='all'||!!minPy||pubF!=='all'||typeF!=='all';
   const nVis=buildings.filter(inZone).length;
   const sido=`<div class="zg zg-r"><span class="zlbl">지역</span><span class="zsel"><select id="zR" aria-label="시도">`
     +`<option value="ALL"${regionF==='ALL'?' selected':''}>전국</option>`
@@ -815,15 +830,17 @@ function renderZones(){
   $('#zones').innerHTML=sido+sub
     +`<div class="zopts">`+seg('sz','연면적',SIZES,minPy)
     +seg('pub','구분',[['all','전체'],['priv','민간'],['pub','공공',inR.filter(b=>b.is_public).length]],pubF)
+    +seg('ty','유형',[['all','전체'],...TYPES.filter(([k])=>tCnt[k]||k===typeF).map(([k,l])=>[k,l.replace('시설',''),tCnt[k]||0])],typeF)
     +`<button type="button" class="zreset" data-reset ${dirty?'':'hidden'}>초기화</button></div>`
     +`<div class="zft"><button type="button" class="btn" data-reset ${dirty?'':'disabled'}>초기화</button><button type="button" class="btn pri" id="zDone">${nVis.toLocaleString()}곳 보기</button></div>`;
   zToggleText();
   const Z=$('#zones'),redraw=()=>{renderZones();drawMarkers();if(mode==='dash')renderDash();fitZone()};
   $('#zR').onchange=e=>setRegion(e.target.value);
   Z.querySelectorAll('[data-pub]').forEach(b=>b.onclick=()=>{pubF=b.dataset.pub;redraw()});
+  Z.querySelectorAll('[data-ty]').forEach(b=>b.onclick=()=>{typeF=b.dataset.ty;redraw()});
   Z.querySelectorAll('[data-sz]').forEach(b=>b.onclick=()=>{minPy=+b.dataset.sz;redraw()});
   Z.querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{zone=b.dataset.z;mode='dash';selId=null;renderZones();drawMarkers();renderPanel();fitZone()});
-  Z.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{zone='all';minPy=0;pubF='all';mode='dash';selId=null;renderZones();drawMarkers();renderPanel();fitZone()});
+  Z.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{zone='all';minPy=0;pubF='all';typeF='all';mode='dash';selId=null;renderZones();drawMarkers();renderPanel();fitZone()});
   $('#zDone').onclick=()=>zOpen(false);
 }
 
@@ -2251,7 +2268,7 @@ document.querySelectorAll('#mtabs [data-mv]').forEach(b=>b.onclick=()=>setMView(
 MQ.addEventListener('change',()=>{if(map)setTimeout(()=>map.resize(),60)});
 function zToggleText(){
   const t=$('#zTxt');if(!t)return;
-  const f=[scopeName()];if(minPy)f.push((SIZES.find(x=>x[0]===minPy)||[])[1]||'');if(pubF!=='all')f.push(pubF==='pub'?'공공':'민간');
+  const f=[scopeName()];if(minPy)f.push((SIZES.find(x=>x[0]===minPy)||[])[1]||'');if(pubF!=='all')f.push(pubF==='pub'?'공공':'민간');if(typeF!=='all')f.push((TYPES.find(x=>x[0]===typeF)||[])[1]||'');
   t.textContent=f.join(' · ');
 }
 function zOpen(o){
@@ -2326,7 +2343,7 @@ async function gSearch(){
 }
 async function openGlobal(id){
   // 지도에도 보이도록 세부 조건은 풀어요 (검색어는 시도를 옮기면 비워져요)
-  zone='all';minPy=0;pubF='all';onlyMissing=false;bidOnly=false;bidAny=false;stageF='all';myOnly=false;
+  zone='all';minPy=0;pubF='all';typeF='all';onlyMissing=false;bidOnly=false;bidAny=false;stageF='all';myOnly=false;
   if(buildings.some(b=>b.id===id)){query='';renderZones();drawMarkers()}
   await openById(id);
 }
@@ -2494,7 +2511,7 @@ async function importCall(body){
 let impStop=false;
 function openImport(){
   const m=modal(`<h2>건축물대장에서 빌딩 가져오기</h2>
-    <p class="hint" style="margin:0">국토교통부 건축HUB 건축물대장(표제부)에서 주용도가 <b>업무시설</b> 또는 <b>방송통신시설</b>(방송국·언론사 사옥 등)인 건물을 필지 단위로 묶어, 연면적이 기준 이상이면 빌딩 목록에 등록해요. 이미 있는 빌딩은 건너뛰어요 — 주소가 같거나, 30m 이내이거나, 70m 이내이면서 이름이 비슷한 경우. 70m 이내라도 이름이 다르면 등록하고 로그에 ‘가까움’으로 알려 줘요. 좌표는 카카오 주소 검색으로 찾아요.</p>
+    <p class="hint" style="margin:0">국토교통부 건축HUB 건축물대장(표제부)에서 주용도가 <b>업무시설</b> 또는 <b>방송통신시설</b>(방송국·언론사 사옥 등)인 건물을(‘가져올 건물’에서 <b>숙박시설(호텔)</b>도 고를 수 있어요) 필지 단위로 묶어, 연면적이 기준 이상이면 빌딩 목록에 등록해요. 이미 있는 빌딩은 건너뛰어요 — 주소가 같거나, 30m 이내이거나, 70m 이내이면서 이름이 비슷한 경우. 70m 이내라도 이름이 다르면 등록하고 로그에 ‘가까움’으로 알려 줘요. 좌표는 카카오 주소 검색으로 찾아요.</p>
     <div style="margin-top:12px"><label>가져올 지역</label>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 6px">
         <button class="btn" type="button" data-rq="all" style="padding:3px 10px;font-size:12px">전국</button>
@@ -2508,7 +2525,7 @@ function openImport(){
       <div class="hint" style="margin-top:6px">전국을 한 번에 훑으면 API 일일 한도(1만 건) 때문에 열흘 넘게 걸려요. 며칠에 나눠 하거나 시도별로 끊어서 하세요.</div>
     </div>
     <div style="margin-top:10px"><label for="imMin">등록 기준 연면적</label><select id="imMin"><option value="5000">5천평(16,529㎡) 이상</option><option value="10000" selected>1만평(33,058㎡) 이상</option><option value="20000">2만평 이상</option><option value="30000">3만평 이상</option></select></div>
-    <div style="margin-top:10px"><label for="imKind">가져올 건물</label><select id="imKind"><option value="office">오피스 빌딩 (업무·방송통신시설, 민간·공공 모두)</option><option value="public">공공청사만 (시청·구청·공공기관 사옥·우체국·법원 등)</option></select>
+    <div style="margin-top:10px"><label for="imKind">가져올 건물</label><select id="imKind"><option value="office">오피스 빌딩 (업무·방송통신시설, 민간·공공 모두)</option><option value="public">공공청사만 (시청·구청·공공기관 사옥·우체국·법원 등)</option><option value="lodging">숙박시설 — 호텔만 (관광호텔·일반 호텔)</option></select>
       <div class="hint" id="imKindH"></div></div>
     <label class="keep"><input type="checkbox" id="imSkip" checked> 이미 끝낸 시군구는 건너뛰기</label>
     <div class="actions"><button class="btn" id="imProbe" type="button">연결 확인</button><button class="btn pri" id="imGo" type="button">가져오기 시작</button><button class="btn" id="imStop" type="button" disabled>멈춤</button><button class="btn" id="imX" type="button">닫기</button></div>
@@ -2530,8 +2547,8 @@ function openImport(){
   m.querySelector('#imX').onclick=()=>{if(running){impStop=true}closeModal();if(running)toast('가져오기를 멈췄어요. 다시 열어 이어서 할 수 있어요.')};
   m.querySelector('#imStop').onclick=()=>{impStop=true;log('— 멈추는 중 (지금 처리 중인 구간까지 마무리)')};
   const kindSel=m.querySelector('#imKind'),kindH=m.querySelector('#imKindH');
-  kindSel.onchange=()=>{const pub=kindSel.value==='public';m.querySelector('#imMin').value=pub?'5000':'10000';
-    kindH.textContent=pub?'주용도코드(공공업무시설)·기타용도·건물명(청사·시청·구청·공단·공사·우체국·법원 등)으로 공공청사를 가려요. 이미 등록된 빌딩이 공공청사면 ‘공공’ 표시만 붙여요. 오피스와 따로 진행 기록을 남겨서 처음부터 훑어요.':''};
+  kindSel.onchange=()=>{const pub=kindSel.value==='public',lodge=kindSel.value==='lodging';m.querySelector('#imMin').value=pub||lodge?'5000':'10000';
+    kindH.textContent=lodge?'주용도가 숙박시설인 건물 중 호텔(관광호텔·일반 호텔)만 가져와요. 생활숙박시설(레지던스)·콘도·다중생활시설·호스텔·모텔은 빼요. 이미 등록된 빌딩과 주소·위치가 같으면(예: 오피스+호텔 복합) 건너뛰어요. 오피스와 따로 진행 기록을 남겨서 처음부터 훑어요.':pub?'주용도코드(공공업무시설)·기타용도·건물명(청사·시청·구청·공단·공사·우체국·법원 등)으로 공공청사를 가려요. 이미 등록된 빌딩이 공공청사면 ‘공공’ 표시만 붙여요. 오피스와 따로 진행 기록을 남겨서 처음부터 훑어요.':''};
   m.querySelector('#imProbe').onclick=async()=>{
     log('연결 확인 중…');
     try{const r=await importCall({action:'probe'});
