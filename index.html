@@ -2706,25 +2706,32 @@ async function adminCall(body){
   if(error){let msg=error.message;try{const j=await error.context.json();msg=j.error||msg}catch(_){}throw new Error(msg)}
   if(data&&data.error)throw new Error(data.error);return data;
 }
-function tempPw(){const c='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';const a=new Uint32Array(12);crypto.getRandomValues(a);
-  let s=[...a].map(x=>c[x%c.length]).join('');if(!/\d/.test(s))s=s.slice(0,11)+'7';if(!/[A-Za-z]/.test(s))s='k'+s.slice(1);return s}
+/* 초기 비밀번호: 관리자가 직접 정해요(6자 이상). 첫 로그인 때 본인이 10자 이상으로 바꾸게 돼요. */
+const INIT_PW_MIN=6;
+const initPwOk=p=>typeof p==='string'&&p.length>=INIT_PW_MIN&&p.length<=72;
+const initPwMsg=`초기 비밀번호는 ${INIT_PW_MIN}자 이상으로 넣어 주세요.`;
 async function openAdmin(){
   const m=modal(`<h2>계정 관리</h2>
     <h3>새 계정</h3>
-    <form onsubmit="return false" class="g3" style="grid-template-columns:1fr 1fr 110px auto;gap:8px;align-items:end">
+    <form onsubmit="return false" class="g3" style="grid-template-columns:1fr 1fr 1fr 110px auto;gap:8px;align-items:end">
       <div><label for="nu_id">아이디(사번 등)</label><input id="nu_id" autocapitalize="none" spellcheck="false"></div>
       <div><label for="nu_nm">이름</label><input id="nu_nm"></div>
+      <div><label for="nu_pw">초기 비밀번호</label><input id="nu_pw" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="${INIT_PW_MIN}자 이상"></div>
       <div><label for="nu_role">권한</label><select id="nu_role"><option value="viewer">조회자</option><option value="editor">편집자</option><option value="admin">관리자</option></select></div>
       <button class="btn pri" id="nu_go" type="submit">만들기</button>
     </form>
+    <div class="hint">초기 비밀번호는 직접 정해요(${INIT_PW_MIN}자 이상, 예: chm2026). 123456 같은 너무 흔한 비밀번호는 서버가 막아요. 한 번 넣으면 다음 계정에도 그대로 남아요. 첫 로그인 때 본인이 새 비밀번호로 바꾸게 돼요.</div>
     <div class="err" id="nu_err"></div>
     <h3>계정 목록</h3><div class="tbl" id="ulist">불러오는 중…</div>
     <div class="actions"><button class="btn" id="adX">닫기</button></div>`);
   m.querySelector('#adX').onclick=closeModal;
+  const pwIn=m.querySelector('#nu_pw');try{pwIn.value=localStorage.getItem('bldg_initpw')||''}catch(_){}
   m.querySelector('#nu_go').onclick=async()=>{
-    const e=m.querySelector('#nu_err');e.textContent='';const pw=tempPw();
+    const e=m.querySelector('#nu_err');e.style.color='';e.textContent='';const pw=pwIn.value;
+    if(!initPwOk(pw)){e.textContent=initPwMsg;pwIn.focus();return}
+    try{localStorage.setItem('bldg_initpw',pw)}catch(_){}
     try{await adminCall({action:'create',login_id:m.querySelector('#nu_id').value.trim().toLowerCase(),name:m.querySelector('#nu_nm').value.trim(),role:m.querySelector('#nu_role').value,password:pw});
-      e.style.color='var(--ok)';e.textContent=`만들었어요. 임시 비밀번호: ${pw}  — 본인에게 직접 전달하세요. 첫 로그인 때 바꾸게 돼요.`;
+      e.style.color='var(--ok)';e.textContent=`만들었어요. 초기 비밀번호: ${pw}  — 본인에게 전달하세요. 첫 로그인 때 바꾸게 돼요.`;
       m.querySelector('#nu_id').value='';m.querySelector('#nu_nm').value='';loadUsers(m)}
     catch(x){e.style.color='';e.textContent=x.message}};
   loadUsers(m);
@@ -2747,7 +2754,19 @@ async function loadUsers(m){
     tr.querySelector('[data-act="role"]').onchange=async e=>{try{await adminCall({action:'update',id,role:e.target.value});toast('권한을 바꿨어요')}catch(x){err.textContent=x.message;loadUsers(m)}};
     bindSmsCell(tr,u,err);
     const ab=tr.querySelector('[data-act="active"]');if(ab)ab.onclick=async()=>{try{await adminCall({action:'update',id,active:!u.active});loadUsers(m)}catch(x){err.textContent=x.message}};
-    const rb=tr.querySelector('[data-act="reset"]');if(rb)rb.onclick=async()=>{const pw=tempPw();try{await adminCall({action:'reset_password',id,password:pw});err.style.color='var(--ok)';err.textContent=`${u.login_id} 임시 비밀번호: ${pw}`}catch(x){err.style.color='';err.textContent=x.message}};
+    const rb=tr.querySelector('[data-act="reset"]');if(rb)rb.onclick=()=>{
+      // 그 줄에서 바로 새 초기 비밀번호를 입력받아요
+      const td=rb.parentElement,keep=td.innerHTML;let def='';try{def=localStorage.getItem('bldg_initpw')||''}catch(_){}
+      td.innerHTML=`<input data-act="rpw" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="새 초기 비밀번호(${INIT_PW_MIN}자↑)" value="${esc(def)}" style="width:150px;padding:4px 6px"> <button class="btn pri" data-act="rok" type="button">초기화</button> <button class="btn" data-act="rno" type="button">취소</button>`;
+      const pi=td.querySelector('[data-act="rpw"]');pi.focus();pi.select();
+      td.querySelector('[data-act="rno"]').onclick=()=>loadUsers(m);
+      const go=async()=>{const pw=pi.value;err.style.color='';err.textContent='';
+        if(!initPwOk(pw)){err.textContent=initPwMsg;pi.focus();return}
+        try{await adminCall({action:'reset_password',id,password:pw});try{localStorage.setItem('bldg_initpw',pw)}catch(_){}
+          await loadUsers(m);const e2=m.querySelector('#ulErr');if(e2){e2.style.color='var(--ok)';e2.textContent=`${u.login_id} 비밀번호를 초기화했어요: ${pw} — 첫 로그인 때 바꾸게 돼요.`}}
+        catch(x){err.style.color='';err.textContent=x.message}};
+      td.querySelector('[data-act="rok"]').onclick=go;pi.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();go()}};
+    };
   });
 }
 
