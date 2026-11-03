@@ -1268,7 +1268,7 @@ const SEC_IC={
   bid:SVG('<path d="M4 10l9-5v14l-9-5z"/><path d="M13 7a5 5 0 0 1 0 10M8 15l1.5 5"/>'),
   log:SVG('<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>')
 };
-const SEC_SHORT={basic:'기본',fm:'시설관리',contact:'연락처',staff:'인력',hist:'업체 이력',contract:'계약',sales:'영업',bid:'입찰',log:'변경 이력'};
+const SEC_SHORT={basic:'기본',fm:'관리',contact:'연락처',staff:'인력',hist:'업체 이력',contract:'계약',sales:'영업',bid:'입찰',log:'변경 이력'};
 const dOpen=k=>OPEN['d_'+k]!==false;
 function dsec(k,title,body,extra){
   const on=dOpen(k);
@@ -1310,8 +1310,8 @@ async function renderDetail(){
       <dt>준공</dt><dd>${esc(b.completed||'—')}</dd><dt>소유주</dt><dd>${esc(b.owner||'—')}</dd></dl>
       ${b.memo?`<div class="note"><b>메모</b>\n${esc(b.memo)}</div>`:''}`,
       (isChm(b)?['CHM','CHMS'].filter(k=>CHM[b.id][k].length).map(k=>`<span class="dchip ${k.toLowerCase()}" title="${k} 사업장 관리: ${esc(CHM[b.id][k].join(', '))}">${k} 관리 · ${esc(CHM[b.id][k].join(', '))}</span> `).join(''):'')+(b.verified?'<span class="dchip ok">확인 완료</span>':'')],
-    ['fm','시설관리',`<dl><dt>시설(FM)</dt><dd>${b.fm?.company?esc(b.fm.company):'<span class="flag">미입력</span>'}</dd>
-      ${CATS.filter(([k])=>b.staff?.[k]?.company).map(([k,l])=>`<dt>${l}</dt><dd>${esc(b.staff[k].company)}${b.staff[k].source?' · '+srcLink(b.staff[k].source):''}</dd>`).join('')}
+    ['fm','관리',`<dl><dt>시설</dt><dd>${b.fm?.company?esc(b.fm.company):'<span class="flag">미입력</span>'}</dd>
+      ${CATS.filter(([k])=>k!=='facility'&&(k!=='other'||b.staff?.[k]?.company)).map(([k,l])=>`<dt>${l}</dt><dd>${b.staff?.[k]?.company?esc(b.staff[k].company)+(b.staff[k].source?' · '+srcLink(b.staff[k].source):''):'<span class="hint">—</span>'}</dd>`).join('')}
       ${b.fm?.pm?`<dt>PM</dt><dd>${esc(b.fm.pm)}${[b.fm.pm_manager,b.fm.pm_contact].filter(Boolean).length?' <span class="hint">· '+esc([b.fm.pm_manager,b.fm.pm_contact].filter(Boolean).join(' · '))+'</span>':''}${b.fm.pm_source?' · '+srcLink(b.fm.pm_source):''}</dd>`:''}
       <dt>담당자</dt><dd>${esc(b.fm?.manager||'—')}</dd><dt>연락처</dt><dd>${esc(b.fm?.contact||'—')}</dd><dt>계약기간</dt><dd>${esc(b.fm?.period||'—')}</dd>${b.fm?.source?`<dt>출처</dt><dd>${srcLink(b.fm.source)}${b.fm.checked_at?' <span class="hint">· '+esc(b.fm.checked_at)+' 반영</span>':''}</dd>`:''}</dl>
       ${sugs.map(x=>sugCard(x,false)).join('')}`,
@@ -1431,8 +1431,10 @@ async function renderEdit(){
     <h3>사진</h3>
     <input type="file" id="pf" accept="image/jpeg,image/png,image/webp" multiple aria-label="사진 추가"><div class="hint" id="pst">사진 1장당 10MB 이하</div>${d.isNew?'':'<button class="btn" id="pfWeb" type="button" style="margin-top:6px">웹에서 사진 찾기</button>'}
     <div class="ph-edit" id="phEdit"></div>
-    <h3>시설관리회사</h3>
-    <div class="f"><label for="fm_company">관리회사</label><input id="fm_company" name="fm_company" value="${val(d.fm.company)}"></div>
+    <h3>관리회사</h3>
+    <div class="f"><label for="fm_company">시설 회사</label><input id="fm_company" name="fm_company" maxlength="120" value="${val(d.fm.company)}"></div>
+    ${CATS.filter(([k])=>k!=='facility').map(([k,l])=>`<div class="f"><label for="c_${k}">${l} 회사</label><input id="c_${k}" name="c_${k}" maxlength="120" value="${val(d.staff[k]?.company)}" placeholder="시설 회사와 다르면 입력"></div>`).join('')}
+    <div class="hint" style="margin:-4px 0 8px">시설·보안·미화를 한 회사가 다 맡으면 시설 회사만 넣으면 돼요. 보안·미화를 다른 회사가 맡으면 그 칸에 회사명을 넣어 주세요.</div>
     <div class="g2"><div class="f"><label for="fm_manager">담당자</label><input id="fm_manager" name="fm_manager" value="${val(d.fm.manager)}"></div>
       <div class="f"><label for="fm_contact">연락처</label><input id="fm_contact" name="fm_contact" value="${val(d.fm.contact)}"></div></div>
     <div class="f"><label for="fm_period">계약기간</label><input id="fm_period" name="fm_period" value="${val(d.fm.period)}" placeholder="예: 2025.01 ~ 2027.12"></div>
@@ -1442,10 +1444,10 @@ async function renderEdit(){
     <div class="g2"><div class="f"><label for="pm_manager">PM 담당자</label><input id="pm_manager" name="pm_manager" maxlength="60" value="${val(d.fm.pm_manager)}"></div>
       <div class="f"><label for="pm_contact">PM 연락처</label><input id="pm_contact" name="pm_contact" maxlength="60" value="${val(d.fm.pm_contact)}"></div></div>
     <div class="f"><label for="pm_source">PM 출처</label><input id="pm_source" name="pm_source" maxlength="500" value="${val(d.fm.pm_source)}" placeholder="확인한 링크나 확인 방법 (선택)"></div>
-    <div class="hint">관리회사·협력사를 바꾸면 이전 업체가 <b>관리업체 이력</b>에 자동으로 남아요. 계약기간을 함께 바꾸면 그 시작일부터로 기록해요.</div>
+    <div class="hint">시설·보안·미화·PM 회사를 바꾸면 이전 업체가 <b>관리업체 이력</b>에 자동으로 남아요. 계약기간을 함께 바꾸면 그 시작일부터로 기록해요.</div>
     <h3>관리 인력</h3>
-    ${CATS.map(([k,l])=>`<div class="stf"><span>${l}</span><input name="s_${k}" inputmode="numeric" aria-label="${l} 인원" placeholder="명" value="${val(d.staff[k]?.n||'')}"><input name="c_${k}" aria-label="${l} 협력사" placeholder="협력사(선택)" value="${val(d.staff[k]?.company)}"></div>`).join('')}
-    ${d.isNew?'':`<h3>관리업체 이력</h3>${histBox(d)}<div class="hint">이력은 이 화면의 ‘저장’과 상관없이 고치는 즉시 저장돼요. 지금 업체(시설·협력사·PM)를 바꾼 내용은 아래 ‘저장’을 누를 때 이력에 남아요.</div>`}
+    ${CATS.map(([k,l])=>`<div class="stf"><span>${l}</span><input name="s_${k}" inputmode="numeric" aria-label="${l} 인원" placeholder="0" value="${val(d.staff[k]?.n||'')}">${k==='facility'?`<input name="c_${k}" type="hidden" value="${val(d.staff[k]?.company)}">`:''}<span class="hint">명</span></div>`).join('')}
+    ${d.isNew?'':`<h3>관리업체 이력</h3>${histBox(d)}<div class="hint">이력은 이 화면의 ‘저장’과 상관없이 고치는 즉시 저장돼요. 지금 업체(시설·보안·미화·PM)를 바꾼 내용은 아래 ‘저장’을 누를 때 이력에 남아요.</div>`}
     <h3>나라장터 입찰</h3>
     <div class="f"><label for="bid_kw">입찰 검색어 (쉼표로 구분)</label><input id="bid_kw" name="bid_kw" maxlength="300" value="${val(d.bid_keywords)}" placeholder="예: 포스트타워, 여의도우체국"><div class="hint">빌딩명은 자동으로 찾아요. 공고명에 빌딩명 대신 쓰이는 이름(기관 청사명 등)이 있으면 넣어 주세요.</div></div>
     <div class="f"><label for="bid_orgs">발주기관명 (쉼표로 구분)</label><input id="bid_orgs" name="bid_orgs" maxlength="300" value="${val(d.bid_orgs)}" placeholder="예: 한국토지주택공사 경기남부지역본부"><div class="hint">이 빌딩을 쓰는 기관 이름이에요. 공고명에 빌딩 이름이 없어도 수요기관이 이 기관이면 연결해요. 공공건물은 빌딩명·소유주로 자동으로도 찾아요.</div></div>
@@ -1656,7 +1658,7 @@ function sugCard(x,withName){
   return `<div class="sug" data-sid="${x.id}">
     <span class="t">자동 검색 결과${withName?' · '+esc(b.name||''):''} · ${esc(new Date(x.found_at).toLocaleDateString('ko-KR'))}</span>
     <span class="co">${esc(x.company)} <span class="conf c${esc(x.confidence||'하')}">확실도 ${esc(x.confidence||'하')}</span></span>
-    <span class="hint">반영하면 들어갈 칸: ${esc(role==='facility'?'시설관리회사':role==='pm'?'PM 회사':'관리 인력 · '+ROLE_LBL[role]+' 협력사')} · 현재: ${cur?esc(cur):'미입력'}</span>
+    <span class="hint">반영하면 들어갈 칸: ${esc(role==='facility'?'관리 · 시설 회사':role==='pm'?'PM 회사':'관리 · '+ROLE_LBL[role]+' 회사')} · 현재: ${cur?esc(cur):'미입력'}</span>
     ${x.evidence?`<span class="ev">${esc(x.evidence)}</span>`:''}
     ${x.source_url?`<span class="hint">출처: ${srcLink(x.source_url)}</span>`:''}
     ${canEdit()?`<div class="row"><button class="btn pri" type="button" data-ok="${x.id}">반영</button><button class="btn" type="button" data-no="${x.id}">무시</button></div>`:''}
@@ -1677,7 +1679,7 @@ function openFmReview(){
   const draw=()=>{
     const list=fmSug.slice().sort((a,b)=>{const na=buildings.find(x=>x.id===a.building_id)?.name||'',nb=buildings.find(x=>x.id===b.building_id)?.name||'';return na.localeCompare(nb,'ko')});
     const m=modal(`<h2>관리사 자동 검색 · 검토 대기 ${list.length}건</h2>
-      <p class="hint" style="margin:0">출처를 열어 확인한 뒤 <b>반영</b>을 누르면 회사명의 역할 표기에 따라 시설관리회사 또는 보안·미화 협력사 칸에 들어가고 변경 이력에 남아요. 틀린 결과는 <b>무시</b>하세요.</p>
+      <p class="hint" style="margin:0">출처를 열어 확인한 뒤 <b>반영</b>을 누르면 회사명의 역할 표기에 따라 시설 회사 또는 보안·미화 회사 칸에 들어가고 변경 이력에 남아요. 틀린 결과는 <b>무시</b>하세요.</p>
       <div id="sugList">${list.length?list.map(x=>sugCard(x,true)).join(''):'<p class="hint">검토할 결과가 없어요.</p>'}</div>
       <div class="actions"><button class="btn" id="sugX" type="button">닫기</button></div>`);
     m.querySelector('#sugX').onclick=closeModal;
@@ -2182,7 +2184,7 @@ function openSalesList(tab){
 /* 빌딩 상세: 계약 정보 + 영업 */
 function contractBox(b){
   const W=wonBidsOf(b.id),c=contractEnd(b);
-  if(!W.length&&!c)return `<div class="hint">계약 만료 정보가 없어요. 시설관리의 계약기간을 넣거나, 영업에서 계약 만료일을 넣거나, 나라장터 낙찰 결과가 연결되면 여기에 나와요.</div>`;
+  if(!W.length&&!c)return `<div class="hint">계약 만료 정보가 없어요. 관리의 계약기간을 넣거나, 영업에서 계약 만료일을 넣거나, 나라장터 낙찰 결과가 연결되면 여기에 나와요.</div>`;
   return `<dl><dt>만료(예상)</dt><dd>${c?`${esc(fmtD(c.d))} <span class="dday ${dCls(dDays(c.d))==='now'?'':'end'}" style="margin-left:4px">${esc(ddayTxt(dDays(c.d)))}</span> <span class="hint">${c.sure?'':'추정 · '}${esc(c.how)}</span>`:'<span class="hint">정보 없음</span>'}</dd></dl>
     ${W.length?`<div class="dsub">최근 낙찰</div><ul class="bids" style="margin-top:0">${W.slice(0,4).map(x=>`<li><span class="t">${safeUrl(x.bids.url)?`<a href="${esc(safeUrl(x.bids.url))}" target="_blank" rel="noopener noreferrer">${esc(x.bids.title)}</a>`:esc(x.bids.title)}</span><span class="m">낙찰 <b>${esc(x.bids.winner)}</b>${x.bids.winner_amt?' · '+fmtWon(x.bids.winner_amt):''}${x.bids.open_at?' · 개찰 '+esc(String(x.bids.open_at).slice(0,10)):''}</span></li>`).join('')}</ul>`:''}`;
 }
