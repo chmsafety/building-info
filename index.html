@@ -1312,7 +1312,7 @@ async function renderDetail(){
       (isChm(b)?['CHM','CHMS'].filter(k=>CHM[b.id][k].length).map(k=>`<span class="dchip ${k.toLowerCase()}" title="${k} 사업장 관리: ${esc(CHM[b.id][k].join(', '))}">${k} 관리 · ${esc(CHM[b.id][k].join(', '))}</span> `).join(''):'')+(b.verified?'<span class="dchip ok">확인 완료</span>':'')],
     ['fm','시설관리',`<dl><dt>시설(FM)</dt><dd>${b.fm?.company?esc(b.fm.company):'<span class="flag">미입력</span>'}</dd>
       ${CATS.filter(([k])=>b.staff?.[k]?.company).map(([k,l])=>`<dt>${l}</dt><dd>${esc(b.staff[k].company)}${b.staff[k].source?' · '+srcLink(b.staff[k].source):''}</dd>`).join('')}
-      ${b.fm?.pm?`<dt>PM</dt><dd>${esc(b.fm.pm)}</dd>`:''}
+      ${b.fm?.pm?`<dt>PM</dt><dd>${esc(b.fm.pm)}${[b.fm.pm_manager,b.fm.pm_contact].filter(Boolean).length?' <span class="hint">· '+esc([b.fm.pm_manager,b.fm.pm_contact].filter(Boolean).join(' · '))+'</span>':''}${b.fm.pm_source?' · '+srcLink(b.fm.pm_source):''}</dd>`:''}
       <dt>담당자</dt><dd>${esc(b.fm?.manager||'—')}</dd><dt>연락처</dt><dd>${esc(b.fm?.contact||'—')}</dd><dt>계약기간</dt><dd>${esc(b.fm?.period||'—')}</dd>${b.fm?.source?`<dt>출처</dt><dd>${srcLink(b.fm.source)}${b.fm.checked_at?' <span class="hint">· '+esc(b.fm.checked_at)+' 반영</span>':''}</dd>`:''}</dl>
       ${sugs.map(x=>sugCard(x,false)).join('')}`,
       sugs.length?`<span class="dchip warn">검토 대기 ${sugs.length}</span>`:(hasFM(b)?'':'<span class="dchip warn">미입력</span>')],
@@ -1388,7 +1388,14 @@ function collect(){
     completed:v('completed'),floors_above:num('fa'),floors_below:num('fb'),memo:v('memo'),bid_keywords:v('bid_kw'),bid_orgs:v('bid_orgs'),lat:num('lat'),lng:num('lng'),verified:f.elements.verified.checked,is_public:f.elements.is_public.checked});
   draft.zoneAuto=v('zone')==='auto';draft.zone=draft.zoneAuto?autoZone(draft.region,draft.district):v('zone');
   const gm=num('gfa_m2');draft.gfa=gm;
-  draft.fm=Object.assign({},draft.fm,{company:v('fm_company'),manager:v('fm_manager'),contact:v('fm_contact'),period:v('fm_period')});
+  {const o=draft.fm||{},co=v('fm_company'),src=v('fm_source'),pm=v('pm_company'),psrc=v('pm_source');
+   const fm=Object.assign({},o,{company:co,manager:v('fm_manager'),contact:v('fm_contact'),period:v('fm_period'),source:src,
+     pm,pm_manager:v('pm_manager'),pm_contact:v('pm_contact'),pm_source:psrc});
+   // 업체만 바꾸고 출처는 그대로 두면 옛 출처가 새 업체에 붙지 않게 비워요
+   if(co!==(o.company||'')&&src===(o.source||'')){fm.source='';delete fm.checked_at}
+   if(pm!==(o.pm||'')&&psrc===(o.pm_source||''))fm.pm_source='';
+   for(const k of ['source','pm','pm_manager','pm_contact','pm_source'])if(!fm[k])delete fm[k];
+   draft.fm=fm}
   const st={};for(const [k] of CATS){const n=num('s_'+k)||0,c=v('c_'+k);if(n||c){const o=Object.assign({},draft.staff[k]||{},{n,company:c});if(o.company!==(draft.staff[k]||{}).company){delete o.source;delete o.checked_at}st[k]=o}}draft.staff=st;
   // 3D 치수·방향은 화면에서 뺐어요(로드뷰로 대신). 저장된 값은 그대로 둬요.
 }
@@ -1429,9 +1436,16 @@ async function renderEdit(){
     <div class="g2"><div class="f"><label for="fm_manager">담당자</label><input id="fm_manager" name="fm_manager" value="${val(d.fm.manager)}"></div>
       <div class="f"><label for="fm_contact">연락처</label><input id="fm_contact" name="fm_contact" value="${val(d.fm.contact)}"></div></div>
     <div class="f"><label for="fm_period">계약기간</label><input id="fm_period" name="fm_period" value="${val(d.fm.period)}" placeholder="예: 2025.01 ~ 2027.12"></div>
+    <div class="f"><label for="fm_source">출처</label><input id="fm_source" name="fm_source" maxlength="500" value="${val(d.fm.source)}" placeholder="확인한 링크나 확인 방법 (선택)"></div>
+    <h3>PM사 (자산·건물 관리)</h3>
+    <div class="f"><label for="pm_company">PM 회사</label><input id="pm_company" name="pm_company" maxlength="120" value="${val(d.fm.pm)}" placeholder="예: ○○자산관리"></div>
+    <div class="g2"><div class="f"><label for="pm_manager">PM 담당자</label><input id="pm_manager" name="pm_manager" maxlength="60" value="${val(d.fm.pm_manager)}"></div>
+      <div class="f"><label for="pm_contact">PM 연락처</label><input id="pm_contact" name="pm_contact" maxlength="60" value="${val(d.fm.pm_contact)}"></div></div>
+    <div class="f"><label for="pm_source">PM 출처</label><input id="pm_source" name="pm_source" maxlength="500" value="${val(d.fm.pm_source)}" placeholder="확인한 링크나 확인 방법 (선택)"></div>
     <div class="hint">관리회사·협력사를 바꾸면 이전 업체가 <b>관리업체 이력</b>에 자동으로 남아요. 계약기간을 함께 바꾸면 그 시작일부터로 기록해요.</div>
     <h3>관리 인력</h3>
     ${CATS.map(([k,l])=>`<div class="stf"><span>${l}</span><input name="s_${k}" inputmode="numeric" aria-label="${l} 인원" placeholder="명" value="${val(d.staff[k]?.n||'')}"><input name="c_${k}" aria-label="${l} 협력사" placeholder="협력사(선택)" value="${val(d.staff[k]?.company)}"></div>`).join('')}
+    ${d.isNew?'':`<h3>관리업체 이력</h3>${histBox(d)}<div class="hint">이력은 이 화면의 ‘저장’과 상관없이 고치는 즉시 저장돼요. 지금 업체(시설·협력사·PM)를 바꾼 내용은 아래 ‘저장’을 누를 때 이력에 남아요.</div>`}
     <h3>나라장터 입찰</h3>
     <div class="f"><label for="bid_kw">입찰 검색어 (쉼표로 구분)</label><input id="bid_kw" name="bid_kw" maxlength="300" value="${val(d.bid_keywords)}" placeholder="예: 포스트타워, 여의도우체국"><div class="hint">빌딩명은 자동으로 찾아요. 공고명에 빌딩명 대신 쓰이는 이름(기관 청사명 등)이 있으면 넣어 주세요.</div></div>
     <div class="f"><label for="bid_orgs">발주기관명 (쉼표로 구분)</label><input id="bid_orgs" name="bid_orgs" maxlength="300" value="${val(d.bid_orgs)}" placeholder="예: 한국토지주택공사 경기남부지역본부"><div class="hint">이 빌딩을 쓰는 기관 이름이에요. 공고명에 빌딩 이름이 없어도 수요기관이 이 기관이면 연결해요. 공공건물은 빌딩명·소유주로 자동으로도 찾아요.</div></div>
@@ -1455,6 +1469,7 @@ async function renderEdit(){
   for(const id of ['fa','fb','gfa_m2'])$('#'+id).addEventListener('input',m3in);
   $('#region').onchange=()=>{collect();renderEdit()};   // 시도가 바뀌면 권역 선택지도 바꿔 줘요
   $('#save').onclick=save;
+  if(!d.isNew){if($('#fmhAdd'))$('#fmhAdd').onclick=()=>openHistEdit(d,null);loadHist(d)}
   drawTmp();
   if(d.photos.length){const urls=await photoUrls(d.photos);if(mode!=='edit'||draft!==d)return;
     $('#phEdit').innerHTML=d.photos.map((x,i)=>`<div><img src="${esc(urls[i])}" alt=""><button type="button" data-rm="${i}" aria-label="사진 빼기">✕</button></div>`).join('');
@@ -2014,7 +2029,7 @@ async function loadHist(b){
   if(!$('#fmhList'))return;
   const {data,error}=await sb.from('fm_history').select('*').eq('building_id',b.id)
     .order('ended_on',{ascending:false,nullsFirst:true}).order('started_on',{ascending:false,nullsFirst:false}).order('id',{ascending:false});
-  const box=$('#fmhList');if(!box||selId!==b.id||mode!=='detail')return;
+  const box=$('#fmhList');if(!box||!((mode==='detail'&&selId===b.id)||(mode==='edit'&&draft&&draft.id===b.id)))return;
   if(error){box.innerHTML=`<li class="m">${/does not exist|relation|schema cache/i.test(error.message)?'이력 저장 칸이 아직 없어요. Supabase 에서 <b>supabase/11_fm_history.sql</b> 을 한 번 실행하면 켜져요.':'이력을 불러오지 못했어요: '+esc(error.message)}</li>`;return}
   fmHist=data||[];
   if(!fmHist.length){box.innerHTML='<li class="m">아직 기록된 업체 이력이 없어요.</li>';return}
